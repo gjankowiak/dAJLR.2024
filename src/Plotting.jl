@@ -4,10 +4,15 @@ import PyPlot
 import Bend
 
 function init()
-    PyPlot.figure(dpi=50)
+    return PyPlot.figure(dpi=50)
 end
 
 function plot(P::Bend.Params, X::Vector{Float64}; label::String="")
+    f = init()
+    plot(f, P, X; label=label)
+end
+
+function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
     N = P.N
     Δs = P.Δs
 
@@ -36,24 +41,36 @@ function plot(P::Bend.Params, X::Vector{Float64}; label::String="")
     end
 
 
-    PyPlot.subplot(121)
-    PyPlot.plot(xy[:,1], xy[:,2], label=label)
-    PyPlot.gca().set_aspect("equal")
-    circ_col = PyPlot.matplotlib.collections.PatchCollection(mass_circles)
-    PyPlot.gca().add_collection(circ_col)
-    PyPlot.gca().set_ylim(-1.5, 1.5)
-    PyPlot.title("2D visualisation")
+    if length(figure.axes) > 0
+        (ax1, ax2, ax4) = figure.axes
+        ax1.lines[1].set_data(xy[:,1], xy[:,2])
+        ax2.lines[1].set_data(t, c.ρ)
+        ax4.lines[1].set_data(t, [0; c.θ])
+        PyPlot.draw()
+    else
+        ax1 = figure.add_subplot(121)
+        ax2 = figure.add_subplot(222)
+        ax4 = figure.add_subplot(224)
 
-    PyPlot.subplot(222)
-    PyPlot.plot(t, c.ρ, label=label)
-    PyPlot.title("ρ")
+        ax1.plot(xy[:,1], xy[:,2], label=label)
+        ax1.set_aspect("equal")
+        # circ_col = PyPlot.matplotlib.collections.PatchCollection(mass_circles)
+        # ax1.add_collection(circ_col)
+        ax1.set_xlim(-1.5, 1.5)
+        ax1.set_ylim(-1.5, 1.5)
+        ax1.set_title("2D visualisation")
 
-    PyPlot.subplot(224)
-    PyPlot.plot(t, [0; c.θ], label=label)
-    PyPlot.title("θ")
+        ax2.plot(t, c.ρ, label=label)
+        ax2.set_title("ρ")
+        ax2.set_ylim(0.1, 10)
 
-    if length(label) > 0
-        PyPlot.legend()
+        ax4.plot(t, [0; c.θ] .- t, label=label)
+        ax4.set_title("θ")
+        ax4.set_ylim(0, 2π)
+
+        if length(label) > 0
+            PyPlot.legend()
+        end
     end
 end
 
@@ -69,8 +86,8 @@ function plot_result(P::Bend.Params, res::Bend.Result; label::String="")
     PyPlot.plot(res.energy_i[1:res.iter])
     PyPlot.title("Energy")
     PyPlot.subplot(212)
-    PyPlot.semilogy(res.residual_i[1:res.iter])
-    PyPlot.title("Residual")
+    PyPlot.semilogy(res.residual_norm_i[1:res.iter])
+    PyPlot.title("Residual norm")
 end
 
 function s()
