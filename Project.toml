@@ -1,6 +1,8 @@
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 EvenParam = "bcb3e14e-248c-11e9-14d9-6db38a995404"
 JankoUtils = "c162ff04-248c-11e9-37d4-2fd351b76fad"
+NLopt = "76087f3c-5699-56af-9a33-bf431cd00edd"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"

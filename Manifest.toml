@@ -9,11 +9,35 @@ version = "1.0.0"
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
+[[BenchmarkTools]]
+deps = ["JSON", "Printf", "Statistics"]
+git-tree-sha1 = "90b73db83791c5f83155016dd1cc1f684d4e1361"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "0.4.3"
+
+[[BinDeps]]
+deps = ["Libdl", "Pkg", "SHA", "URIParser", "Unicode"]
+git-tree-sha1 = "66158ad56b4bf6cc8413b37d0b7bc52402682764"
+uuid = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
+version = "1.0.0"
+
 [[BinaryProvider]]
 deps = ["Libdl", "SHA"]
 git-tree-sha1 = "5b08ed6036d9d3f0ee6369410b830f8873d4024c"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
 version = "0.5.8"
+
+[[CMake]]
+deps = ["BinDeps"]
+git-tree-sha1 = "50a8b41d2c562fccd9ab841085fc7d1e2706da82"
+uuid = "631607c0-34d2-5d66-819e-eb0f9aa2061a"
+version = "1.2.0"
+
+[[CMakeWrapper]]
+deps = ["BinDeps", "CMake", "Libdl", "Parameters", "Test"]
+git-tree-sha1 = "16d4acb3d37dc05b714977ffefa8890843dc8985"
+uuid = "d5fb7624-851a-54ee-a528-d3f3bac0b4a0"
+version = "0.2.3"
 
 [[CodeTracking]]
 deps = ["InteractiveUtils", "UUIDs"]
@@ -173,6 +197,12 @@ version = "0.5.4"
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
+[[MathProgBase]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "9abbe463a1e9fc507f12a69e7f29346c2cdc472c"
+uuid = "fdba3010-5040-5b88-9595-932c9decdf73"
+version = "0.7.8"
+
 [[Measures]]
 git-tree-sha1 = "e498ddeee6f9fdb4551ce855a46f54dbd900245f"
 uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
@@ -186,6 +216,12 @@ version = "0.4.3"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[NLopt]]
+deps = ["BinaryProvider", "CMakeWrapper", "Libdl", "MathProgBase", "Test"]
+git-tree-sha1 = "b46237debcacd4fed7bbeb31200667a75b90384f"
+uuid = "76087f3c-5699-56af-9a33-bf431cd00edd"
+version = "0.5.1"
 
 [[NaNMath]]
 git-tree-sha1 = "928b8ca9b2791081dc71a51c55347c27c618760f"
@@ -202,6 +238,12 @@ deps = ["Random", "Serialization", "Test"]
 git-tree-sha1 = "c4c13474d23c60d20a67b217f1d7f22a40edf8f1"
 uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.1.0"
+
+[[Parameters]]
+deps = ["OrderedCollections"]
+git-tree-sha1 = "b62b2558efb1eef1fa44e4be5ff58a515c287e38"
+uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+version = "0.12.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
@@ -331,6 +373,12 @@ version = "0.32.1"
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[URIParser]]
+deps = ["Test", "Unicode"]
+git-tree-sha1 = "6ddf8244220dfda2f17539fa8c9de20d6c575b69"
+uuid = "30578b45-9adc-5946-b283-645ec420af67"
+version = "0.4.0"
 
 [[UUIDs]]
 deps = ["Random", "SHA"]

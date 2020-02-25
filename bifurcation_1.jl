@@ -38,19 +38,22 @@ P_3 = Bend.Params(N, Δs, M, epsilon, beta, beta_prime, beta_second)
 P = P_3
 
 # Ellipsis
-Xinit = Bend.initial_data(P, 1, 1, 5)
+# Xinit = Bend.initial_data(P, 1, 1, 5)
+Xinit = Bend.initial_data(P, 1.1, 1, 1, false)
 Xcur = copy(Xinit)
 
 print("Critical epsilon:")
 println(eps_c)
 
-delta_eps = 10. .^range(-5, -1, length=10)
-epss = eps_c .+ [0.1; 0; -delta_eps]
+delta_eps = [10. .^range(-5, -1, length=10); collect(0.1.+0.05*(1:4))]
+epss = eps_c .+ [0.1; 0; -delta_eps; ]
 neps = length(epss)
 
 idx_first_bif = findfirst(x -> x == eps_c, epss)
 
-amp_ρ = zeros(neps)
+min_ρ = zeros(neps)
+max_ρ = zeros(neps)
+energies = zeros(neps)
 errs = zeros(neps)
 
 for i in 1:neps
@@ -62,16 +65,20 @@ for i in 1:neps
     if i == idx_first_bif+1
         Xcur .= Xinit
     end
-    (X, err) = Bend.minimize_energy(P, Xcur; tol=tol, max_iter=max_iter, relaxation=rel)
+    res = Bend.minimize_energy(P, Xcur; atol=1e-10, max_iter=max_iter, relaxation=rel, adapt=true)
+    X = res.sol
+    iter = res.iter
     c = Bend.X2candidate(P, X)
-    extrema_rho = extrema(c.ρ)
-    amp_ρ[i] = extrema_rho[2] - extrema_rho[1]
-    errs[i] = err
+    min_ρ[i], max_ρ[i] = extrema(c.ρ)
+    energies[i] = res.energy_i[iter]
+    errs[i] = res.residual_i[iter]
     Xcur .= X
-    println(err)
+    print("Residual: "); println(errs[i])
+    print("Iterations: "); println(res.iter)
+    print("Tolerance reached: "); println(res.converged)
     # Plotting.plot(P, X)
 end
 
-data = [epss amp_ρ errs]
+data = [epss min_ρ max_ρ energies errs]
 
 DelimitedFiles.writedlm("bifurcation_1_amplitude.txt", data, ",")

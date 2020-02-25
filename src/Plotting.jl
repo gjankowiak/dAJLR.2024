@@ -42,14 +42,24 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
 
 
     if length(figure.axes) > 0
-        (ax1, ax2, ax4) = figure.axes
+        (ax1, ax2, ax3, ax4) = figure.axes
         ax1.lines[1].set_data(xy[:,1], xy[:,2])
         ax2.lines[1].set_data(t, c.ρ)
-        ax4.lines[1].set_data(t, [0; c.θ])
+        ax3.lines[1].set_data(t, [0; c.θ])
+        ax4.lines[1].set_data(t, Bend.compute_beta(P, c.ρ))
+
+        ax2.relim()
+        ax2.autoscale_view(true,true,true)
+        ax3.relim()
+        ax3.autoscale_view(true,true,true)
+        ax4.relim()
+        ax4.autoscale_view(true,true,true)
+
         PyPlot.draw()
     else
-        ax1 = figure.add_subplot(121)
+        ax1 = figure.add_subplot(221)
         ax2 = figure.add_subplot(222)
+        ax3 = figure.add_subplot(223)
         ax4 = figure.add_subplot(224)
 
         ax1.plot(xy[:,1], xy[:,2], label=label)
@@ -62,11 +72,16 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
 
         ax2.plot(t, c.ρ, label=label)
         ax2.set_title("ρ")
-        ax2.set_ylim(0.1, 10)
+        # ax2.set_ylim(0.1, 10)
 
-        ax4.plot(t, [0; c.θ] .- t, label=label)
-        ax4.set_title("θ")
-        ax4.set_ylim(0, 2π)
+        ax3.plot(t, [0; c.θ], label=label)
+        ax3.axhline(0, color="black", lw=0.5)
+        ax3.set_title("θ")
+        # ax3.set_ylim(0, 2π)
+
+        ax4.plot(t, Bend.compute_beta(P, c.ρ), label=label)
+        ax3.axhline(0, color="black", lw=0.5)
+        ax4.set_title("β(ρ)")
 
         if length(label) > 0
             PyPlot.legend()

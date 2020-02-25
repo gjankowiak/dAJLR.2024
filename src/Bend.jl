@@ -46,6 +46,7 @@ mutable struct SolverParams
     max_step_size::Float64
     step_down_threshold::Float64
     step_up_threshold::Float64
+    step_factor::Float64
 end
 
 default_SP = SolverParams(1e-8,    # atol
@@ -56,7 +57,8 @@ default_SP = SolverParams(1e-8,    # atol
                           1e-5,    # min_step_size
                           1e-1,    # max_step_size
                           1e-1,    # step_down_threshold
-                          1e-4)    # step_up_threshold
+                          1e-4,    # step_up_threshold
+                          1.2)     # step_factor
 
 mutable struct Candidate
     ρ::Union{Vector{Float64},SubA}
@@ -78,6 +80,7 @@ struct Result
     energy_i::Vector{Float64}
     residual_norm_i::Vector{Float64}
     converged::Bool
+    finished::Bool
 end
 
 mutable struct Relaxation
@@ -158,131 +161,6 @@ end
     * λM = X[2*P.N+2]
 """
 
-function minimize_energy(P::Params, Xinit::Vector{Float64}; rtol::Float64=1e-12, atol::Float64=1e-8, relaxation::Float64=1.0, max_iter::Int64=100, dirichlet_rho::Bool=false, adapt::Bool=false)
-    # One time initialization of finite differences matrices
-    matrices = assemble_fd_matrices(P)
-
-    # Initialization
-    residual_norm = Inf
-    energy = 0
-
-    residual_norm_prev = 0
-    energy_prev = Inf
-
-    X = copy(Xinit)
-    Xnew = copy(Xinit)
-    n = 1
-
-    relax_tracker = Relaxation(relaxation, 1e-5, 1e-5, 5e-2)
-    relax_tracker = Relaxation(relaxation, 1e-5, 1e-5, 5e-2)
-
-    b = compute_residual(P, matrices, X)
-
-    energy_i = zeros(max_iter)
-    residual_norm_i = zeros(max_iter)
-
-    energy_i[1] = compute_energy(P, matrices, X)
-    residual_norm_i[1] = LA.norm(b)
-
-    # Loop until tolerance or max. iterations is met
-    while (n < 2) || ((residual_norm > atol) && abs(residual_norm_prev - residual_norm) > rtol && (n < max_iter))
-        n += 1
-        # Assemble
-        A = assemble_inner_system(P, matrices, X)
-
-        if dirichlet_rho
-            A[1,1] = 1e30
-            b[1] = 1e30*(X[1] - P.M/2π)
-        end
-
-        # Solve
-        δX = A\-b
-
-        energy_prev = energy_i[n-1]
-        residual_norm_prev = residual_norm_i[n-1]
-
-        c = X2candidate(P, X)
-
-        if adapt
-            while true
-                # Update
-                Xnew .= X + relax_tracker.r*δX
-                cnew = X2candidate(P, Xnew)
-                if ((P.potential_range > 0) && (maximum(cnew.ρ) > P.ρ_max))
-                    relax_tracker.r /= 2
-                    print("Rho above bound, reducing relaxation parameter to: ")
-                    println(relax_tracker.r)
-                    if relax_tracker.r < relax_tracker.min_r
-                        error("Relaxation parameter became too small")
-                    end
-                    continue
-                end
-                b = compute_residual(P, matrices, Xnew)
-
-                # Compute residual norm and energy
-                residual_norm = LA.norm(b)
-                energy = compute_energy(P, matrices, Xnew)
-
-                if abs(residual_norm_prev - residual_norm) < rtol
-                    X .= Xnew
-                    break
-                end
-
-                if (energy > energy_prev + 1e-2*energy)
-                    relax_tracker.r /= 2
-                    print("Reducing relaxation parameter to: ")
-                    println(relax_tracker.r)
-                    if relax_tracker.r < relax_tracker.min_r
-                        error("Relaxation parameter became too small")
-                    end
-                else
-                    if ((0 < (energy_prev - energy) < relax_tracker.threshold)
-                        && (relax_tracker.r < relax_tracker.max_r))
-                        relax_tracker.r = 2*relax_tracker.r
-                        print("Increasing relaxation parameter to: ")
-                        println(relax_tracker.r)
-                        if relax_tracker.r > relax_tracker.max_r
-                            relax_tracker.r = relax_tracker.max_r
-                        end
-                    else
-                        if n % 100 == 0
-                            print(n)
-                            print(", energy: ")
-                            print(energy)
-                            print(", residual_norm: ")
-                            println(residual_norm)
-                        end
-                        X .= Xnew
-                        break
-                    end
-                end
-            end
-        else
-            # Update
-            X += relax_tracker.r*δX
-            b = compute_residual(P, matrices, X)
-
-            # Compute residual norm and energy
-            residual_norm = LA.norm(b)
-            energy = compute_energy(P, matrices, X)
-            if n % 100 == 0
-                print(n)
-                print(", energy: ")
-                print(energy)
-                print(", residual_norm: ")
-                println(residual_norm)
-            end
-        end
-
-        energy_i[n] = energy
-        residual_norm_i[n] = residual_norm
-    end
-    println("Relative residual_norm: "); println(abs(residual_norm - residual_norm_prev))
-    println("Absolute residual_norm: "); println(abs(residual_norm))
-    res = Result(X, n, energy_i, residual_norm_i, n<max_iter)
-    return res
-end
-
 function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
                     X::Vector{Float64}, δX::Vector{Float64}, current_residual::Vector{Float64},
                     current_step_size::Float64, history::History)
@@ -323,12 +201,12 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
         # print("residual ratio: ")
         # println(LA.norm(residual - history.residual_prev)/LA.norm(residual))
 
-        if (LA.norm(residual) > 1e3*SP.atol  &&
-            (LA.norm(residual - history.residual_prev)/LA.norm(residual) > SP.step_down_threshold) ||
-            (energy - history.energy_prev > history.energy_prev*1e-2))
-            t /= 2
-            # print("Reducing relaxation parameter to: ")
-            # println(t)
+        # if (LA.norm(residual) > 1e3*SP.atol  &&
+        # (LA.norm(residual - history.residual_prev)/LA.norm(residual) > SP.step_down_threshold) ||
+        if (energy - history.energy_prev > history.energy_prev*1e-2)
+            t /= SP.step_factor
+            print("Reducing relaxation parameter to: ")
+            println(t)
             if t < SP.min_step_size
                 error("Relaxation parameter became too small")
             end
@@ -336,9 +214,9 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
             if ((0 < (history.energy_prev - energy)) &&
                 (LA.norm(residual - history.residual_prev)/LA.norm(residual) < SP.step_up_threshold) &&
                 (t < SP.max_step_size))
-                t = min(2*t, SP.max_step_size)
-                # print("Increasing relaxation parameter to: ")
-                # println(t)
+                t = min(SP.step_factor*t, SP.max_step_size)
+                print("Increasing relaxation parameter to: ")
+                println(t)
             else
                 @goto finish
             end
@@ -390,7 +268,7 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
             X .= Xnew
         else
             # Update
-            X += step_size.r*δX
+            X += step_size*δX
             residual = compute_residual(P, matrices, X)
         end
 
@@ -400,12 +278,12 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
         energy_i[n] = energy
         residual_norm_i[n] = residual_norm
 
-        done = (LA.norm(residual - history.residual_prev) < SP.rtol) || (LA.norm(residual) < SP.atol)
+        converged = (LA.norm(residual - history.residual_prev) < SP.rtol) || (LA.norm(residual) < SP.atol)
 
         history.energy_prev = energy
         history.residual_prev = residual
 
-        res = Result(X, n, energy_i, residual_norm_i, done)
+        res = Result(X, n, energy_i, residual_norm_i, converged, converged || (n>=SP.max_iter))
         return res
     end
 end
@@ -422,15 +300,6 @@ function compute_energy(P::Params, matrices::FDMatrices, X::Vector{Float64})
         E += P.Δs*sum(w)
     end
     return E
-end
-
-function compute_energy(P::Params, X::Vector{Float64})
-    matrices = assemble_fd_matrices(P)
-    c = X2candidate(P, X)
-    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
-    θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
-    beta = compute_beta(P, c.ρ)
-    return 0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2) + 0.5P.Δs*sum(beta.*θ_dot.^2)
 end
 
 function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float64})
@@ -452,20 +321,20 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
     θ_prime_centered = compute_centered_fd_θ(P, matrices, c.θ)
 
-    A_ρρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*θ_prime_centered.^2 .*Matrix{Float64}(LA.I, N, N)
+    A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*θ_prime_centered.^2 .*Matrix{Float64}(LA.I, N, N)
     if P.potential_range > 0
         (_, _, w_second) = compute_potential(P, X)
-        A_ρρ .+= w_second .* Matrix{Float64}(LA.I, N, N)
+        A_E1_ρ .+= w_second .* Matrix{Float64}(LA.I, N, N)
     end
-    A_ρθ = 2*beta_prime_ρ.*θ_prime_centered.*matrices.D1c
+    A_E1_θ = beta_prime_ρ.*θ_prime_centered.*matrices.D1c
     # Δs factor for symmetry
-    A_ρλM = P.Δs*ones(N)
+    A_E1_λM = P.Δs*ones(N)
 
-    A_θρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[1:N-1].*θ_prime_up.*matrices.M_mhalf[1:N-1,:])/Δs
-    A_θθ  = (beta_phalf.*matrices.D1[2:N,:] - beta_mhalf.*matrices.D1[1:N-1,:])/Δs + (c.λx*cos.(c.θ) - c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
+    A_E2_ρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[1:N-1].*θ_prime_up.*matrices.M_mhalf[1:N-1,:])/Δs
+    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_mhalf.*matrices.D1[1:N-1,:])/Δs + (c.λx*cos.(c.θ) - c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
 
-    A_θλx = -P.Δs*sin.(c.θ).*ones(N-1)
-    A_θλy = P.Δs*cos.(c.θ).*ones(N-1)
+    A_E2_λx = -P.Δs*sin.(c.θ)
+    A_E2_λy = P.Δs*cos.(c.θ)
 
     # Δs factor for symmetry
     A_c1θ = -P.Δs*sin.(c.θ)'
@@ -473,17 +342,17 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     A_c3ρ = P.Δs*ones(N)'
 
     if P.center_ρ
-        A_ρλcm = P.Δs.*(0:(N-1))
-        A_c4ρ  = A_ρλcm'
-        A = [[ A_ρρ      A_ρθ   zeros(N) zeros(N)      A_ρλM     A_ρλcm ];
-             [ A_θρ      A_θθ      A_θλx    A_θλy zeros(N-1) zeros(N-1) ];
+        A_E1_λcm = P.Δs.*(0:(N-1))
+        A_c4ρ  = A_E1_λcm'
+        A = [[ A_E1_ρ      A_E1_θ   zeros(N) zeros(N)      A_E1_λM     A_E1_λcm ];
+             [ A_E2_ρ      A_E2_θ      A_E2_λx    A_E2_λy zeros(N-1) zeros(N-1) ];
              [ zeros(N)' A_c1θ         0        0          0          0 ];
              [ zeros(N)' A_c2θ         0        0          0          0 ];
              [ A_c3ρ     zeros(N-1)'   0        0          0          0 ];
              [ A_c4ρ     zeros(N-1)'   0        0          0          0 ]]
     else
-        A = [[ A_ρρ      A_ρθ   zeros(N) zeros(N)      A_ρλM ];
-             [ A_θρ      A_θθ      A_θλx    A_θλy zeros(N-1) ];
+        A = [[ A_E1_ρ      A_E1_θ   zeros(N) zeros(N)      A_E1_λM ];
+             [ A_E2_ρ      A_E2_θ      A_E2_λx    A_E2_λy zeros(N-1) ];
              [ zeros(N)' A_c1θ         0        0          0 ];
              [ zeros(N)' A_c2θ         0        0          0 ];
              [ A_c3ρ     zeros(N-1)'   0        0          0 ]]
@@ -508,19 +377,19 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
     θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
 
     # Compute residuals for ρ
-    b_ρ = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ)).^2 + c.λM*ones(N)
+    b_E1 = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ)).^2 + c.λM*ones(N)
     if P.potential_range > 0
         (_, w_prime, _) = compute_potential(P, X)
-        b_ρ -= w_prime
+        b_E1 -= w_prime
     end
     # Compute residuals for θ
-    b_θ = (beta_phalf.*θ_prime_down - beta_mhalf.*θ_prime_up)/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
+    b_E2 = (beta_phalf.*θ_prime_down - beta_mhalf.*θ_prime_up)/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
 
     # Assemble with constraint residuals
     if P.center_ρ
-        return [b_ρ; b_θ; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); (Δs*sum(c.ρ) - P.M); Δs*sum(c.ρ.*(0:(N-1))) - P.M/2π]
+        return [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); (Δs*sum(c.ρ) - P.M); Δs*sum(c.ρ.*(0:(N-1))) - P.M/2π]
     else
-        return [b_ρ; b_θ; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
+        return [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
     end
 end
 
@@ -564,6 +433,36 @@ function assemble_fd_matrices(P::Params)
                       # Matrix for 2nd order finite difference
                       spdiagm_const([1.0, -2.0, 1.0], [-1, 0, 1], N)/Δs^2
                      )
+end
+
+function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false)
+    if P.N % sides != 0
+        error("N must be dividible by the number of sides")
+    end
+
+    if !(0 <= smoothing <= 1)
+        error("smoothing parameter must be between 0 and 1")
+    end
+
+    k = Int64(P.N / sides)
+    N_straight = floor(Int64, P.N/sides*(1-smoothing))
+
+    thetas_1p = [zeros(N_straight); [2π/sides - i*P.Δs/smoothing for i in (k-N_straight-1):-1:0]]
+    thetas = repeat(thetas_1p, sides) + repeat(2π/sides*(0:sides-1), inner=k)
+
+    if reverse_phase
+        rhos = repeat([P.M/(2π*(1-smoothing))*ones(N_straight); zeros(k-N_straight)], sides)
+    else
+        rhos = repeat([zeros(N_straight); P.M/(2π*smoothing)*ones(k-N_straight)], sides)
+    end
+
+    if P.center_ρ
+        return [P.M/2π*ones(P.N); thetas[2:end]; 0; 0; 0; 0]
+        # return [rhos; thetas[2:end]; 0; 0; 0; 0]
+    else
+        return [P.M/2π*ones(P.N); thetas[2:end]; 0; 0; 0]
+        # return [rhos; thetas[2:end]; 0; 0; 0]
+    end
 end
 
 function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=false, reverse_phase::Bool=false)
