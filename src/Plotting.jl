@@ -3,16 +3,20 @@ module Plotting
 import PyPlot
 import Bend
 
-function init()
+function init(P::Bend.Params)
+    global matrices
+    matrices = Bend.assemble_fd_matrices(P)
     return PyPlot.figure(dpi=50)
 end
 
 function plot(P::Bend.Params, X::Vector{Float64}; label::String="")
-    f = init()
+    f = init(P)
     plot(f, P, X; label=label)
 end
 
 function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
+    global matrices
+
     N = P.N
     Δs = P.Δs
 
@@ -30,22 +34,14 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
     bc = sum(xy, dims=1)/N
     xy = xy .- bc
 
-    mass_scale = 5e0
-    mass_norm = 2P.M/(Δs*mass_scale)
-    mass_circles = []
-
-    mass_circles = [mass_circles; PyPlot.matplotlib.patches.Circle(xy[1,:], c.ρ[1]/mass_norm, alpha=0.4, color="blue")]
-    mass_circles = [mass_circles; PyPlot.matplotlib.patches.Circle(xy[2,:], c.ρ[2]/mass_norm, alpha=0.4, color="blue")]
-    for i in 3:N
-        mass_circles = [mass_circles; PyPlot.matplotlib.patches.Circle(xy[i,:], c.ρ[i]/mass_norm, alpha=0.4, color="blue")]
-    end
-
-
     if length(figure.axes) > 0
         (ax1, ax2, ax3, ax4) = figure.axes
         ax1.lines[1].set_data(xy[:,1], xy[:,2])
+        ax1.collections[1].set_offsets(xy)
+        ax1.collections[1].set_sizes(3*c.ρ)
         ax2.lines[1].set_data(t, c.ρ)
-        ax3.lines[1].set_data(t, [0; c.θ])
+        θ_dot = Bend.compute_centered_fd_θ(P, matrices, c.θ)
+        ax3.lines[1].set_data(t, θ_dot)
         ax4.lines[1].set_data(t, Bend.compute_beta(P, c.ρ))
 
         ax2.relim()
@@ -62,7 +58,8 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax3 = figure.add_subplot(223)
         ax4 = figure.add_subplot(224)
 
-        ax1.plot(xy[:,1], xy[:,2], label=label)
+        ax1.plot(xy[:,1], xy[:,2], lw=0.1, label=label)
+        ax1.scatter(xy[:,1], xy[:,2])
         ax1.set_aspect("equal")
         # circ_col = PyPlot.matplotlib.collections.PatchCollection(mass_circles)
         # ax1.add_collection(circ_col)
@@ -71,16 +68,18 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax1.set_title("2D visualisation")
 
         ax2.plot(t, c.ρ, label=label)
+        ax2.axhline(0, color="black", lw=0.5)
         ax2.set_title("ρ")
         # ax2.set_ylim(0.1, 10)
 
-        ax3.plot(t, [0; c.θ], label=label)
+        θ_dot = Bend.compute_centered_fd_θ(P, matrices, c.θ)
+        ax3.plot(t, θ_dot, label=label)
+        ax3.set_title("d/ds θ")
         ax3.axhline(0, color="black", lw=0.5)
-        ax3.set_title("θ")
         # ax3.set_ylim(0, 2π)
 
         ax4.plot(t, Bend.compute_beta(P, c.ρ), label=label)
-        ax3.axhline(0, color="black", lw=0.5)
+        ax4.axhline(0, color="black", lw=0.5)
         ax4.set_title("β(ρ)")
 
         if length(label) > 0

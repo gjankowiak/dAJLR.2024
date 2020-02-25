@@ -192,18 +192,7 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
         residual = compute_residual(P, matrices, Xnew)
         energy = compute_energy(P, matrices, Xnew)
 
-        if ((LA.norm(residual - history.residual_prev) < SP.rtol) ||
-            (LA.norm(residual) < SP.atol))
-
-            @goto finish
-        end
-
-        # print("residual ratio: ")
-        # println(LA.norm(residual - history.residual_prev)/LA.norm(residual))
-
-        # if (LA.norm(residual) > 1e3*SP.atol  &&
-        # (LA.norm(residual - history.residual_prev)/LA.norm(residual) > SP.step_down_threshold) ||
-        if (energy - history.energy_prev > history.energy_prev*1e-2)
+        if (energy - history.energy_prev > history.energy_prev*1e-3)
             t /= SP.step_factor
             print("Reducing relaxation parameter to: ")
             println(t)
@@ -212,14 +201,14 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
             end
         else
             if ((0 < (history.energy_prev - energy)) &&
+                (LA.norm(residual) > 1e-3) &&
                 (LA.norm(residual - history.residual_prev)/LA.norm(residual) < SP.step_up_threshold) &&
                 (t < SP.max_step_size))
                 t = min(SP.step_factor*t, SP.max_step_size)
                 print("Increasing relaxation parameter to: ")
                 println(t)
-            else
-                @goto finish
             end
+            @goto finish
         end
     end
 
@@ -324,7 +313,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*θ_prime_centered.^2 .*Matrix{Float64}(LA.I, N, N)
     if P.potential_range > 0
         (_, _, w_second) = compute_potential(P, X)
-        A_E1_ρ .+= w_second .* Matrix{Float64}(LA.I, N, N)
+        A_E1_ρ .-= w_second .* Matrix{Float64}(LA.I, N, N)
     end
     A_E1_θ = beta_prime_ρ.*θ_prime_centered.*matrices.D1c
     # Δs factor for symmetry
@@ -393,12 +382,12 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
     end
 end
 
-function compute_fd_θ(P::Params, matrices::FDMatrices, θ::SubA)
+function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
     return (view(fd, 1:P.N-1), view(fd, 2:P.N))
 end
 
-function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::SubA)
+function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     return matrices.D1c*θ + matrices.D1c_rhs
 end
 
@@ -451,7 +440,9 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     thetas = repeat(thetas_1p, sides) + repeat(2π/sides*(0:sides-1), inner=k)
 
     if reverse_phase
-        rhos = repeat([P.M/(2π*(1-smoothing))*ones(N_straight); zeros(k-N_straight)], sides)
+        rho = sin.(range(0, π, length=N_straight))
+        rho /= (P.M/sides/(N_straight)) / sum(rho)
+        rhos = repeat([rho; zeros(k-N_straight)], sides)
     else
         rhos = repeat([zeros(N_straight); P.M/(2π*smoothing)*ones(k-N_straight)], sides)
     end
@@ -530,9 +521,13 @@ function compute_potential(P::Params, X::Vector{Float64})
     ρ_max = P.ρ_max
     c = X2candidate(P, X)
 
-    w = g(ρ_max .- c.ρ, α)
-    w_prime = g_p(ρ_max .- c.ρ, α)
-    w_second = g_pp(ρ_max .- c.ρ, α)
+    factor = 1e1
+
+    @show minimum(ρ_max .- c.ρ)
+
+    w = factor*g(ρ_max .- c.ρ, α)
+    w_prime = factor*g_p(ρ_max .- c.ρ, α)
+    w_second = factor*g_pp(ρ_max .- c.ρ, α)
 
     return (w, w_prime, w_second)
 end
