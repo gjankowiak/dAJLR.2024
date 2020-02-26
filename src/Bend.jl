@@ -141,15 +141,21 @@ function candidate2X(c::Candidate)
 end
 
 function compute_beta(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(1 .+ P.beta_m*(rho.-P.beta_rho0) + 0.5*P.beta_h*(rho.-P.beta_rho0).^2 + 1/4*P.beta_k*(rho.-P.beta_rho0).^4)
+    return P.beta_0*(1 .+
+                         P.beta_m*(rho.-P.beta_rho0) +
+                     0.5*P.beta_h*(rho.-P.beta_rho0).^2 +
+                     1/4*P.beta_k*(rho.-P.beta_rho0).^4)
 end
 
 function compute_beta_prime(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_m*ones(size(rho)) + P.beta_h*(rho.-P.beta_rho0) + P.beta_k*(rho.-P.beta_rho0).^3)
+    return P.beta_0*(P.beta_m*ones(size(rho)) +
+                     P.beta_h*(rho.-P.beta_rho0) +
+                     P.beta_k*(rho.-P.beta_rho0).^3)
 end
 
 function compute_beta_second(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_h*ones(size(rho)) + 3*P.beta_k*(rho.-P.beta_rho0).^2)
+    return P.beta_0*(  P.beta_h*ones(size(rho)) +
+                     3*P.beta_k*(rho.-P.beta_rho0).^2)
 end
 
 """
@@ -307,7 +313,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     beta_prime_mhalf = compute_beta_prime(P, matrices.M_mhalf*c.ρ)
 
     # Compute upstream and downstream finite differences of θ
-    θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
+    θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
     θ_prime_centered = compute_centered_fd_θ(P, matrices, c.θ)
 
     A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*θ_prime_centered.^2 .*Matrix{Float64}(LA.I, N, N)
@@ -315,17 +321,23 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
         (_, _, w_second) = compute_potential(P, X)
         A_E1_ρ .-= w_second .* Matrix{Float64}(LA.I, N, N)
     end
+    # FIXME should be minus sign
     A_E1_θ = beta_prime_ρ.*θ_prime_centered.*matrices.D1c
-    # Δs factor for symmetry
-    A_E1_λM = P.Δs*ones(N)
 
-    A_E2_ρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[1:N-1].*θ_prime_up.*matrices.M_mhalf[1:N-1,:])/Δs
-    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_mhalf.*matrices.D1[1:N-1,:])/Δs + (c.λx*cos.(c.θ) - c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
+    A_E1_λM = ones(N)
 
-    A_E2_λx = -P.Δs*sin.(c.θ)
-    A_E2_λy = P.Δs*cos.(c.θ)
+    A_E2_ρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*θ_prime_up.*matrices.M_mhalf[2:N,:])/Δs
+    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_mhalf.*matrices.D1[1:N-1,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
 
-    # Δs factor for symmetry
+    A_E2_λx = -sin.(c.θ)
+    A_E2_λy =  cos.(c.θ)
+
+    # FIXME
+    # A_E2_ρ  *= 1e4
+    # A_E2_θ  *= 1e4
+    # A_E2_λx *= 1e4
+    # A_E2_λy *= 1e4
+
     A_c1θ = -P.Δs*sin.(c.θ)'
     A_c2θ = P.Δs*cos.(c.θ)'
     A_c3ρ = P.Δs*ones(N)'
@@ -340,8 +352,8 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
              [ A_c3ρ     zeros(N-1)'   0        0          0          0 ];
              [ A_c4ρ     zeros(N-1)'   0        0          0          0 ]]
     else
-        A = [[ A_E1_ρ      A_E1_θ   zeros(N) zeros(N)      A_E1_λM ];
-             [ A_E2_ρ      A_E2_θ      A_E2_λx    A_E2_λy zeros(N-1) ];
+        A = [[ A_E1_ρ    A_E1_θ        zeros(N) zeros(N)   A_E1_λM ];
+             [ A_E2_ρ    A_E2_θ        A_E2_λx  A_E2_λy    zeros(N-1) ];
              [ zeros(N)' A_c1θ         0        0          0 ];
              [ zeros(N)' A_c2θ         0        0          0 ];
              [ A_c3ρ     zeros(N-1)'   0        0          0 ]]
@@ -363,7 +375,7 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
     beta_mhalf = compute_beta(P, matrices.M_mhalf*c.ρ)[2:N]
 
     # Compute upstream and downstream finite differences of θ
-    θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
+    θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
 
     # Compute residuals for ρ
     b_E1 = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ)).^2 + c.λM*ones(N)
@@ -384,7 +396,7 @@ end
 
 function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
-    return (view(fd, 1:P.N-1), view(fd, 2:P.N))
+    return (fd, view(fd, 1:P.N-1), view(fd, 2:P.N))
 end
 
 function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
@@ -465,7 +477,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=fals
         y = [imag(exp(2π*im*k/pulse)) for k in 0:(pulse-1)]
         xy = [x y]
     else
-        t = collect(range(-π/2, 3π/2, length=N+1)[1:N])
+        t = collect(range(-π/2, 3π/2, length=10N+1)[1:10N])
         xy = [a*cos.(t) b*sin.(t)]
     end
     xy_even = EvenParam.reparam(xy; closed=true, new_N = N)
@@ -490,11 +502,15 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=fals
     end
 
     t = collect(range(0, 2π, length=N+1)[1:N])
-    thetas += 8e-2/pulse*sin.(pulse*t[2:N])
-    if reverse_phase
-        rhos = P.M/2π*(1 .- 1/pulse*sin.(pulse*t))
-    else
-        rhos = P.M/2π*(1 .- 1/pulse*cos.(pulse*t))
+    thetas += 8e-1/pulse*sin.(pulse*t[2:N])
+    rhos = P.M/2π*ones(N)
+    if pulse > 0
+        if reverse_phase
+            f = sin
+        else
+            f = cos
+        end
+        rhos -= P.M/2π/pulse*f.(pulse*t)
     end
 
     if P.center_ρ

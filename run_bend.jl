@@ -5,7 +5,7 @@ import Plotting
 import PyPlot
 
 
-N = 300
+N = 600
 Δs = 2π/N
 M = 2π
 
@@ -15,16 +15,16 @@ rho_max = 3*M/2π
 
 center_rho = false
 
-atol = 1e-3
+atol = 1e-8
 rtol = 1e-13
-max_iter = 500
+max_iter = 50000
 step_size = 1e-1
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = 1.9
-beta_h     = 1.9
-beta_k     = 0
+beta_m     = -2
+beta_h     = -2
+beta_k     = 20
 beta_j     = 4
 
 print("Critical epsilons:")
@@ -53,8 +53,8 @@ solver_params = Bend.SolverParams(
                                   1e-5, # min step size
                                   1e-1, # max step size
                                   5e-1, # step down threshold
-                                  1e-3, # step up threshold
-                                  1.2,  # step factor
+                                  1e-4, # step up threshold
+                                  1.4,  # step factor
                                  )
 
 
@@ -63,25 +63,14 @@ solver_params = Bend.SolverParams(
 # Plotting.plot(P, Xcircle, label="circle")
 
 # Ellipsis
-# Xinit = Bend.initial_data(P, 1, 1, pulse=1, poly=false, reverse_phase=false)
-Xinit = Bend.initial_data_smooth(P, sides=3, smoothing=0.8, reverse_phase=true)
-# Xinit = Bend.initial_data(P, 1, 1, 8, true)
-
-# Plotting.plot(P, Xinit)
-# Plotting.s()
-
-# res = Bend.minimize_energy(P, Xinit; atol=atol, max_iter=max_iter, relaxation=rel, adapt=true, dirichlet_rho=false)
-
-# print("Tolerance met: ")
-# println(res.converged)
-
-# Plotting.plot_result(P, res, label="solution")
-# Plotting.s()
+Xinit = Bend.initial_data(P, 1.1, 1, pulse=8, reverse_phase=true)
+# Xinit = Bend.initial_data_smooth(P, sides=3, smoothing=0.4, reverse_phase=true)
 
 Xx = copy(Xinit)
 
-epsilons = [2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
-epsilons = [1e-1]
+# epsilons = [2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
+epsilons = [1e-2]
+# epsilons = []
 
 for e in epsilons
     if e == epsilons[1]
