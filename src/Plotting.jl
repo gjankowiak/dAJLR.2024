@@ -59,7 +59,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax4 = figure.add_subplot(224)
 
         ax1.plot(xy[:,1], xy[:,2], lw=0.1, label=label)
-        ax1.scatter(xy[:,1], xy[:,2])
+        ax1.scatter(xy[:,1], xy[:,2], s=3*c.ρ)
         ax1.set_aspect("equal")
         # circ_col = PyPlot.matplotlib.collections.PatchCollection(mass_circles)
         # ax1.add_collection(circ_col)

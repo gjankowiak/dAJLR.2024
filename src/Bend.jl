@@ -198,7 +198,7 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
         residual = compute_residual(P, matrices, Xnew)
         energy = compute_energy(P, matrices, Xnew)
 
-        if (energy - history.energy_prev > history.energy_prev*1e-3)
+        if (energy - history.energy_prev > history.energy_prev*1e2)
             t /= SP.step_factor
             print("Reducing relaxation parameter to: ")
             println(t)
@@ -213,6 +213,9 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
                 t = min(SP.step_factor*t, SP.max_step_size)
                 print("Increasing relaxation parameter to: ")
                 println(t)
+            else
+                # print("residual ratio: ")
+                # println(LA.norm(residual - history.residual_prev)/LA.norm(residual))
             end
             @goto finish
         end
@@ -322,7 +325,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
         A_E1_ρ .-= w_second .* Matrix{Float64}(LA.I, N, N)
     end
     # FIXME should be minus sign
-    A_E1_θ = beta_prime_ρ.*θ_prime_centered.*matrices.D1c
+    A_E1_θ = -beta_prime_ρ.*θ_prime_centered.*matrices.D1c
 
     A_E1_λM = ones(N)
 
@@ -502,7 +505,9 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=fals
     end
 
     t = collect(range(0, 2π, length=N+1)[1:N])
-    thetas += 8e-1/pulse*sin.(pulse*t[2:N])
+    if pulse > 0
+        thetas += 2e-1/pulse*sin.(pulse*t[2:N])
+    end
     rhos = P.M/2π*ones(N)
     if pulse > 0
         if reverse_phase
