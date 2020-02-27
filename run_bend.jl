@@ -7,6 +7,8 @@ import Serialization
 
 
 N = 2*2*3*5*7
+print("N: ")
+println(N)
 Δs = 2π/N
 M = 2π
 
@@ -65,18 +67,33 @@ solver_params = Bend.SolverParams(
 
 # Ellipsis
 # Xinit = Bend.initial_data(P, 1, 1, pulse=2, reverse_phase=true)
-# Xinit = Bend.initial_data_smooth(P, sides=2, smoothing=0.9, reverse_phase=true)
-Xinit = Serialization.deserialize("xstart")
+# Xinit = Bend.initial_data_smooth(P, sides=3, smoothing=0.9, reverse_phase=true)
+#
+# Xinit = Serialization.deserialize("xstart_2.dat")
 
-Xx = copy(Xinit)
+res_prev = Serialization.deserialize("results_case_1/branch_2.dat")
+Xinit = res_prev[end]
 
+Xx = Base.copy(Xinit)
+
+# bifurcation_1
 epsilons = [range(0.35, 0.21, length=50); 2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
+
+# bifurcation_2
+# epsilons = [range(0.2355, 0.20, length=60); 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2][1:2]
+# epsilons = [0.2355; 0.23545; 0.23525; range(0.235, 0.2, step=-0.0005); 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
+# epsilons = [range(0.2, 0.1, length=10); 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
+epsilons = 5*10. .^range(-2, -4; length=10)[1:6]
+println(size(epsilons))
 # epsilons = [0.35; 0.345; 0.34]
 # epsilons = [1.2455e0]
 # close to critical for (m,h,k) = (-2,-2,20)
 # epsilons = [1.364625e0]
 
-# epsilons = [0.35]
+# Xstored = Serialization.deserialize("branch_1.dat")
+# Xinit .= Xstored[end]
+
+# epsilons = [0.2355]
 # epsilons = []
 
 Xs = []
@@ -86,8 +103,8 @@ for e in epsilons
         Xx .= Xinit
     end
 
-    # f = Plotting.init(P)
-    # Plotting.plot(f, P, Xx)
+    f = Plotting.init(P)
+    Plotting.plot(f, P, Xx)
 
     P.epsilon = e
     minimizor = Bend.minimizor(P, Xx, solver_params)
@@ -100,26 +117,26 @@ for e in epsilons
 
         Xx .= res.sol
         n = res.iter
-        # if n % 100 == 0
-            # println()
-            # print(n)
-            # print("")
-            # print(", energy: ")
-            # print(res.energy_i[n])
-            # print(", residual norm: ")
-            # println(res.residual_norm_i[n])
-            # Plotting.plot(f, P, res.sol)
-        # else
-            # print(".")
-        # end
-        print(".")
+        if n % 100 == 0
+            println()
+            print(n)
+            print("")
+            print(", energy: ")
+            print(res.energy_i[n])
+            print(", residual norm: ")
+            println(res.residual_norm_i[n])
+            Plotting.plot(f, P, res.sol)
+        else
+            print(".")
+        end
+        # print(".")
 
         if res.finished
             print("Finished, converged: ")
             println(res.converged)
             push!(Xs, res.sol)
             # if e == epsilons[1]
-                # Serialization.serialize("xstart", res.sol)
+                # Serialization.serialize("xstart_2.dat", res.sol)
             # end
             break
         end
@@ -132,12 +149,12 @@ for e in epsilons
     # Plotting.s()
 end
 
-Serialization.serialize("branch_1.dat", Xs)
-Serialization.serialize("branch_1_P.dat", P)
+Serialization.serialize("branch_2.dat", Xs)
+Serialization.serialize("branch_2_P.dat", P)
 
-for r in Xs
-    Plotting.plot(P, r)
-end
+# for r in Xs
+    # Plotting.plot(P, r)
+# end
 
 # display(X)
 # println()

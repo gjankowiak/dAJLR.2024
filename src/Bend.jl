@@ -100,6 +100,15 @@ struct FDMatrices
     D2::SA.SparseMatrixCSC{Float64}
 end
 
+function copy(P::Params)
+    return Params(
+    P.N, P.Δs, P.M,
+    P.epsilon, P.ρ_max, P.beta_0,
+    P.beta_rho0, P.beta_m, P.beta_h,
+    P.beta_k, P.beta_j, P.potential_range,
+    P.center_ρ)
+end
+
 function X2candidate(P::Params, X; copy::Bool=false)
     if P.center_ρ
         if copy
@@ -234,7 +243,7 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
     # Initialization
     history = History(0, zeros(2*P.N+2 + P.center_ρ))
 
-    X = copy(Xinit)
+    X = Base.copy(Xinit)
     n = 1
     step_size = SP.step_size
 
