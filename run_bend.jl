@@ -20,14 +20,14 @@ center_rho = false
 
 atol = 1e-8
 rtol = 1e-13
-max_iter = 50000
+max_iter = 3000
 step_size = 1e-2
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = 1
-beta_h     = 1
-beta_k     = 0
+beta_m     = -2
+beta_h     = -2
+beta_k     = 20
 beta_j     = 4
 
 print("Critical epsilons:")
@@ -35,7 +35,7 @@ for j in 2:4
     if beta_h > 0
         eps_c = sqrt((beta_m^2 - beta_h/2)/j^2)
     else
-        eps_c = sqrt(-beta_h/2 /j^2)
+        eps_c = sqrt((-beta_h/2 +2*beta_m^2)/j^2)
     end
     print(eps_c)
     print(" ")
@@ -56,7 +56,7 @@ solver_params = Bend.SolverParams(
                                   1e-5, # min step size
                                   1e-1, # max step size
                                   5e1, # step down threshold
-                                  5e-3, # step up threshold
+                                  5e-4, # step up threshold
                                   1.4,  # step factor
                                  )
 
@@ -66,25 +66,25 @@ solver_params = Bend.SolverParams(
 # Plotting.plot(P, Xcircle, label="circle")
 
 # Ellipsis
-# Xinit = Bend.initial_data(P, 1, 1, pulse=2, reverse_phase=true)
-# Xinit = Bend.initial_data_smooth(P, sides=3, smoothing=0.9, reverse_phase=true)
+# Xinit = Bend.initial_data(P, 1, 1, pulse=2, pulse_amplitude=1e0, reverse_phase=true)
+# Xinit = Bend.initial_data_smooth(P, sides=4, smoothing=0.4, reverse_phase=true)
 #
-# Xinit = Serialization.deserialize("xstart_2.dat")
+Xinit = Serialization.deserialize("results_case_2/case_2_branch_1.dat")[end]
 
-res_prev = Serialization.deserialize("results_case_1/branch_2.dat")
-Xinit = res_prev[end]
+# res_prev = Serialization.deserialize("results_case_1/branch_2.dat")
+# Xinit = res_prev[end]
 
 Xx = Base.copy(Xinit)
 
 # bifurcation_1
-epsilons = [range(0.35, 0.21, length=50); 2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
+# epsilons = [range(0.35, 0.21, length=50); 2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
 
 # bifurcation_2
 # epsilons = [range(0.2355, 0.20, length=60); 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2][1:2]
 # epsilons = [0.2355; 0.23545; 0.23525; range(0.235, 0.2, step=-0.0005); 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
 # epsilons = [range(0.2, 0.1, length=10); 9e-2; 8e-2; 7e-2; 6e-2; 5e-2]
-epsilons = 5*10. .^range(-2, -4; length=10)[1:6]
-println(size(epsilons))
+# epsilons = 5*10. .^range(-2, -4; length=10)[1:6]
+# println(size(epsilons))
 # epsilons = [0.35; 0.345; 0.34]
 # epsilons = [1.2455e0]
 # close to critical for (m,h,k) = (-2,-2,20)
@@ -93,20 +93,37 @@ println(size(epsilons))
 # Xstored = Serialization.deserialize("branch_1.dat")
 # Xinit .= Xstored[end]
 
-# epsilons = [0.2355]
+epsilons = [1.38835]
+epsilons = [1.3883]
+# Case 2, oscillations
+epsilons = [1.47]
+# Case 2, 1.5 looks critical
+# epsilons = [0.75; 0.8; 0.85; 0.9; 0.95]
+# epsilons = [0.95; 0.96; 0.97; 0.971; 0.972; 0.973; 0.974; 0.975]
+# epsilons = [0.95; 1.0]
+# epsilons = [1.2; 1.1; 1.0; 0.9; 0.8; 0.7; 0.6; 0.5]
+epsilons = range(0.5, 0.05; step=-0.05)
+# epsilons = [0.2, 0.3, 0.4, 0.45, 0.49, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.96, 0.97, 0.971, 0.972, 0.973, 0.974, 0.975]
+# epsilons = [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.45, 0.49, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.96, 0.97, 0.971, 0.972, 0.973, 0.974, 0.975]
+# epsilons = [0.49; 0.55; 0.6; 0.65; 0.7; 0.75]
+# epsilons = [0.45; 0.4; 0.3; 0.2; 0.15; 0.1; 0.05]
+# epsilons = range(0.7, 1.0; length=20)
+# epsilons = [0.48]
 # epsilons = []
 
 Xs = []
+Ps = []
 
 for e in epsilons
     if e == epsilons[1]
         Xx .= Xinit
     end
 
+    P.epsilon = e
+
     f = Plotting.init(P)
     Plotting.plot(f, P, Xx)
 
-    P.epsilon = e
     minimizor = Bend.minimizor(P, Xx, solver_params)
 
     local res
@@ -135,22 +152,21 @@ for e in epsilons
             print("Finished, converged: ")
             println(res.converged)
             push!(Xs, res.sol)
+            push!(Ps, Bend.copy(P))
+            println(P.epsilon)
             # if e == epsilons[1]
                 # Serialization.serialize("xstart_2.dat", res.sol)
             # end
             break
         end
-
-        # println("waiting for input")
-        # readline()
     end
 
     # Plotting.plot_result(P, res, label="solution")
     # Plotting.s()
 end
 
-Serialization.serialize("branch_2.dat", Xs)
-Serialization.serialize("branch_2_P.dat", P)
+Serialization.serialize("case_2_branch_2.dat", Xs)
+Serialization.serialize("case_2_branch_2_P.dat", Ps)
 
 # for r in Xs
     # Plotting.plot(P, r)

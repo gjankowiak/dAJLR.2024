@@ -109,6 +109,23 @@ function copy(P::Params)
     P.center_ρ)
 end
 
+function prompt_yes_no(s::String, default_yes::Bool=false)
+    while true
+        print(s)
+        if default_yes
+            print(" [Y/n]: ")
+        else
+            print(" [y/N]: ")
+        end
+        i = readline()
+        if (default_yes && i == "") || (i == "y")
+            return true
+        elseif (!default_yes && i == "") || (i == "n")
+            return false
+        end
+    end
+end
+
 function X2candidate(P::Params, X; copy::Bool=false)
     if P.center_ρ
         if copy
@@ -295,6 +312,13 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
     end
 end
 
+function compute_energy_split(P::Params, matrices::FDMatrices, X::Vector{Float64})
+    c = X2candidate(P, X)
+    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
+    θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
+    beta = compute_beta(P, c.ρ)
+    return (0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2), 0.5P.Δs*sum(beta.*θ_dot.^2))
+end
 
 function compute_energy(P::Params, matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
@@ -480,7 +504,7 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     end
 end
 
-function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=false, reverse_phase::Bool=false)
+function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false)
     N = P.N
 
     # Construct the ellipsis and reparameterize it
@@ -515,7 +539,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=fals
 
     t = collect(range(0, 2π, length=N+1)[1:N])
     if pulse > 0
-        thetas += 2e-1/pulse*sin.(pulse*t[2:N])
+        thetas += pulse_amplitude/pulse*sin.(pulse*t[2:N])
     end
     rhos = P.M/2π*ones(N)
     if pulse > 0
@@ -524,7 +548,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, poly::Bool=fals
         else
             f = cos
         end
-        rhos -= P.M/2π/pulse*f.(pulse*t)
+        rhos -= pulse_amplitude*P.M/2π/pulse*f.(pulse*t)
     end
 
     if P.center_ρ

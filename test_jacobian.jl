@@ -22,8 +22,8 @@ step_size = 1e-3
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = -3
-beta_h     = -3
+beta_m     = -2
+beta_h     = -2
 beta_k     = 20
 beta_j     = 4
 

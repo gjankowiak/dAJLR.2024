@@ -82,6 +82,8 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax4.axhline(0, color="black", lw=0.5)
         ax4.set_title("β(ρ)")
 
+        PyPlot.suptitle("epsilon: " * string(P.epsilon))
+
         if length(label) > 0
             PyPlot.legend()
         end

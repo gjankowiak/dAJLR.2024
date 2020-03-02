@@ -5,17 +5,23 @@ import PyPlot
 import Serialization
 import Interpolations
 
+color = ["#1f77b4", "#ff7f0e"]
+
 # branch 1
 epsilons_b1 = [range(0.35, 0.21, length=50); 2e-1; 1e-1; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2; 5*10. .^range(-2, -4; length=10)[2:6]]
-energy_b1 = zeros(size(epsilons_b1))
-amp_b1 = zeros(size(epsilons_b1))
+mass_energy_b1 = zeros(size(epsilons_b1))
+bending_energy_b1 = zeros(size(epsilons_b1))
+min_rho_b1 = zeros(size(epsilons_b1))
+max_rho_b1 = zeros(size(epsilons_b1))
 
 eps_c = [0.353553390593273; 0.23570226039551584]
 
 # branch 2
 epsilons_b2 = [0.2355; 0.23545; 0.23525; range(0.235, 0.2, step=-0.0005); range(0.2, 0.1, length=10)[2:end]; 9e-2; 8e-2; 7e-2; 6e-2; 5e-2; 5*10. .^range(-2, -4; length=10)[2:6]]
-energy_b2 = zeros(size(epsilons_b2))
-amp_b2 = zeros(size(epsilons_b2))
+mass_energy_b2 = zeros(size(epsilons_b2))
+bending_energy_b2 = zeros(size(epsilons_b2))
+min_rho_b2 = zeros(size(epsilons_b2))
+max_rho_b2 = zeros(size(epsilons_b2))
 
 # Xs_b1 = Serialization.deserialize("results_case_1/branch_1.dat")
 Xs_b1 = Serialization.deserialize("results_case_1/branch_1.dat")
@@ -37,11 +43,10 @@ xy[2,:] = [Δs 0]
 for i in 1:length(Xs_b1)
     Ps_b1[i].epsilon = epsilons_b1[i]
     P = Ps_b1[i]
-    energy_b1[i] = Bend.compute_energy(P, matrices, Xs_b1[i])
+    (mass_energy_b1[i], bending_energy_b1[i]) = Bend.compute_energy_split(P, matrices, Xs_b1[i])
 
     c = Bend.X2candidate(P, Xs_b1[i])
-    min_rho, max_rho = extrema(c.ρ)
-    amp_b1[i] = max_rho - min_rho
+    min_rho_b1[i], max_rho_b1[i] = extrema(c.ρ)
 end
 
 
@@ -53,11 +58,10 @@ Ps_b2 = [Bend.copy(P_b2) for i in 1:length(Xs_b2)]
 for i in 1:length(Xs_b2)
     Ps_b2[i].epsilon = epsilons_b2[i]
     P = Ps_b2[i]
-    energy_b2[i] = Bend.compute_energy(P, matrices, Xs_b2[i])
+    (mass_energy_b2[i], bending_energy_b2[i]) = Bend.compute_energy_split(P, matrices, Xs_b2[i])
 
     c = Bend.X2candidate(P, Xs_b2[i])
-    min_rho, max_rho = extrema(c.ρ)
-    amp_b2[i] = max_rho - min_rho
+    min_rho_b2[i], max_rho_b2[i] = extrema(c.ρ)
 end
 
 itp_energy_b1 = Interpolations.LinearInterpolation(reverse(epsilons_b1), reverse(energy_b1))
@@ -78,20 +82,25 @@ ax1.legend()
 
 ax2 = PyPlot.subplot(234, sharex=ax1)
 ax2.axvline(epsilons_b1[1], ls="dotted", color="black", lw=0.5)
-ax2.plot(epsilons_b2, energy_diff, ".-")
+ax2.plot(epsilons_b1, mass_energy_b1, ".-", color=color[1])
+ax2.plot(epsilons_b1, bending_energy_b1, ".:",  color=color[1])
+ax2.plot(epsilons_b2, mass_energy_b2, ".-",  color=color[2])
+ax2.plot(epsilons_b2, bending_energy_b2, ".:",  color=color[2])
 ax2.axhline(0, color="black", lw=0.5)
 ax2.axvline(0, color="black", lw=0.5)
-ax2.set_title("Energy difference between branches 1 and 2")
+ax2.set_title("Energy components")
 
 ax3 = PyPlot.subplot(132)
 ax3.axvline(epsilons_b1[1], ls="dotted", color="black", lw=0.5)
-ax3.plot(epsilons_b1, amp_b1, label="branch 1", ".-")
-ax3.plot(epsilons_b2, amp_b2, label="branch 2", ".-")
-ax3.axhline(0, label="circle", color="black")
+ax3.plot(epsilons_b1, min_rho_b1, label="branch 1", ".-", color=color[1])
+ax3.plot(epsilons_b1, max_rho_b1, label="branch 1", ".-", color=color[1])
+ax3.plot(epsilons_b2, min_rho_b2, label="branch 1", ".-", color=color[2])
+ax3.plot(epsilons_b2, max_rho_b2, label="branch 1", ".-", color=color[2])
+ax3.axhline(1.0, label="circle", color="black")
 for eps in eps_c
     ax3.axvline(eps, color="black", lw=0.5)
 end
-ax3.set_title("Amplitude in rho")
+ax3.set_title("Min/max rho")
 ax3.legend()
 
 ax4 = PyPlot.subplot(233)
