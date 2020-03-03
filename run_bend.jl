@@ -25,21 +25,17 @@ step_size = 1e-2
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = -2
-beta_h     = -2
-beta_k     = 20
+beta_m     = -1
+beta_h     = 1
+beta_k     = 0
 beta_j     = 4
 
-print("Critical epsilons:")
-for j in 2:4
-    if beta_h > 0
-        eps_c = sqrt((beta_m^2 - beta_h/2)/j^2)
-    else
-        eps_c = sqrt((-beta_h/2 +2*beta_m^2)/j^2)
-    end
-    print(eps_c)
-    print(" ")
-end
+# print("Critical epsilons:")
+# for j in 2:4
+    # eps_c = sqrt((beta_m^2 - beta_h/2)/j^2)
+    # print(eps_c)
+    # print(" ")
+# end
 println()
 
 # beta, beta_prime, beta_second = quadratic_beta(beta0, rho0, m, h)
@@ -66,11 +62,10 @@ solver_params = Bend.SolverParams(
 # Plotting.plot(P, Xcircle, label="circle")
 
 # Ellipsis
-# Xinit = Bend.initial_data(P, 1, 1, pulse=2, pulse_amplitude=1e0, reverse_phase=true)
-# Xinit = Bend.initial_data_smooth(P, sides=4, smoothing=0.4, reverse_phase=true)
+# Xinit = Bend.initial_data(P, 1, 1, pulse=3, pulse_amplitude=1e-1, reverse_phase=true)
+Xinit = Bend.initial_data_smooth(P, sides=2, smoothing=0.4, reverse_phase=true)
 #
-Xinit = Serialization.deserialize("results_case_2/case_2_branch_1.dat")[end]
-
+Xinit = Serialization.deserialize("results_case_4/branch_1.dat")[end]
 # res_prev = Serialization.deserialize("results_case_1/branch_2.dat")
 # Xinit = res_prev[end]
 
@@ -98,31 +93,40 @@ epsilons = [1.3883]
 # Case 2, oscillations
 epsilons = [1.47]
 # Case 2, 1.5 looks critical
-# epsilons = [0.75; 0.8; 0.85; 0.9; 0.95]
-# epsilons = [0.95; 0.96; 0.97; 0.971; 0.972; 0.973; 0.974; 0.975]
-# epsilons = [0.95; 1.0]
-# epsilons = [1.2; 1.1; 1.0; 0.9; 0.8; 0.7; 0.6; 0.5]
-epsilons = range(0.5, 0.05; step=-0.05)
-# epsilons = [0.2, 0.3, 0.4, 0.45, 0.49, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.96, 0.97, 0.971, 0.972, 0.973, 0.974, 0.975]
-# epsilons = [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.45, 0.49, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.96, 0.97, 0.971, 0.972, 0.973, 0.974, 0.975]
-# epsilons = [0.49; 0.55; 0.6; 0.65; 0.7; 0.75]
-# epsilons = [0.45; 0.4; 0.3; 0.2; 0.15; 0.1; 0.05]
-# epsilons = range(0.7, 1.0; length=20)
-# epsilons = [0.48]
-# epsilons = []
+# epsilons = 1 ./exp.(range(log(1/0.75), log(1/0.97), length=20))
+# epsilons = [0.75; 0.755; 0.76; 0.765; 0.77; 0.775; range(0.78, 0.90, step=0.01); range(0.901, 0.95, step=0.002)]
+#
+# epsilons = [1.1185; 1.119; range(1.12, 1.13, step=0.001); 1 ./exp.(range(log(1/1.135), log(1/1.466), length=20))]
+#
+# case 3
+# epsilons = [0.3]
+# epsilons = 1 ./exp.(range(log(1/0.40), log(1/0.4082), length=10))
+#
+# case 4
+# epsilons = [range(0.353, 0.35, step=-0.0005); range(0.345, 0.33, step=-0.005); range(0.32, 0.05, step=-0.01)]
+epsilons = collect(range(0.05, 0.01, step=-0.002))
+# epsilons = [0.353]
+
+# case 5
+# epsilons = [0.3]
 
 Xs = []
 Ps = []
 
+f = Plotting.init(P)
+Plotting.plot(f, P, Xx)
+
 for e in epsilons
+    println("##")
+    println(e)
+    println("##")
+
     if e == epsilons[1]
         Xx .= Xinit
     end
 
     P.epsilon = e
-
-    f = Plotting.init(P)
-    Plotting.plot(f, P, Xx)
+    println(P.epsilon)
 
     minimizor = Bend.minimizor(P, Xx, solver_params)
 
@@ -141,7 +145,9 @@ for e in epsilons
             print(", energy: ")
             print(res.energy_i[n])
             print(", residual norm: ")
-            println(res.residual_norm_i[n])
+            print(res.residual_norm_i[n])
+            print(", min/max ρ: ")
+            println(extrema(view(Xx, 1:P.N)))
             Plotting.plot(f, P, res.sol)
         else
             print(".")
@@ -153,7 +159,6 @@ for e in epsilons
             println(res.converged)
             push!(Xs, res.sol)
             push!(Ps, Bend.copy(P))
-            println(P.epsilon)
             # if e == epsilons[1]
                 # Serialization.serialize("xstart_2.dat", res.sol)
             # end
@@ -165,8 +170,8 @@ for e in epsilons
     # Plotting.s()
 end
 
-Serialization.serialize("case_2_branch_2.dat", Xs)
-Serialization.serialize("case_2_branch_2_P.dat", Ps)
+Serialization.serialize("case_4_branch_1.dat", Xs)
+Serialization.serialize("case_4_branch_1_P.dat", Ps)
 
 # for r in Xs
     # Plotting.plot(P, r)
