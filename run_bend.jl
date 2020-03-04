@@ -7,14 +7,15 @@ import Serialization
 
 
 N = 2*2*3*5*7
+N = 2*2*2*2*2*2*7
 print("N: ")
 println(N)
 Δs = 2π/N
 M = 2π
 
 epsilon = 2e-2
-potential_range = 0
-rho_max = 3*M/2π
+potential_range = 0.1
+rho_max = -1e-12
 
 center_rho = false
 
@@ -25,17 +26,17 @@ step_size = 1e-2
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = -1
+beta_m     = -1.3
 beta_h     = 1
 beta_k     = 0
 beta_j     = 4
 
-# print("Critical epsilons:")
-# for j in 2:4
-    # eps_c = sqrt((beta_m^2 - beta_h/2)/j^2)
-    # print(eps_c)
-    # print(" ")
-# end
+print("Critical epsilons:")
+for j in 2:8
+    eps_c = sqrt((beta_m^2 - beta_h/2)/j^2)
+    print(eps_c)
+    print(" ")
+end
 println()
 
 # beta, beta_prime, beta_second = quadratic_beta(beta0, rho0, m, h)
@@ -62,10 +63,10 @@ solver_params = Bend.SolverParams(
 # Plotting.plot(P, Xcircle, label="circle")
 
 # Ellipsis
-# Xinit = Bend.initial_data(P, 1, 1, pulse=3, pulse_amplitude=1e-1, reverse_phase=true)
-Xinit = Bend.initial_data_smooth(P, sides=2, smoothing=0.4, reverse_phase=true)
+# Xinit = Bend.initial_data(P, 1, 1, pulse=8, pulse_amplitude=1e-1, reverse_phase=true)
+Xinit = Bend.initial_data_smooth(P, sides=8, smoothing=0.4, reverse_phase=true)
 #
-Xinit = Serialization.deserialize("results_case_4/branch_1.dat")[end]
+Xinit = Serialization.deserialize("case_6_branch_1_new.dat.bak")[1]
 # res_prev = Serialization.deserialize("results_case_1/branch_2.dat")
 # Xinit = res_prev[end]
 
@@ -103,12 +104,26 @@ epsilons = [1.47]
 # epsilons = 1 ./exp.(range(log(1/0.40), log(1/0.4082), length=10))
 #
 # case 4
-# epsilons = [range(0.353, 0.35, step=-0.0005); range(0.345, 0.33, step=-0.005); range(0.32, 0.05, step=-0.01)]
+epsilons = [range(0.353, 0.35, step=-0.0005); range(0.345, 0.33, step=-0.005); range(0.32, 0.05, step=-0.01)]
 epsilons = collect(range(0.05, 0.01, step=-0.002))
 # epsilons = [0.353]
 
 # case 5
-# epsilons = [0.3]
+epsilons = [range(0.353, 0.35, step=-0.0005);
+            range(0.345, 0.33, step=-0.005);
+            range(0.32, 0.05, step=-0.01);
+            range(0.05, 0.01, step=-0.002)]
+epsilons = epsilons[59-38+1:end]
+#
+# case 6
+epsilons = [0.136]
+# epsilons = collect(range(0.136, 0.135, step=-0.0001))
+# epsilons = collect(range(0.135, 0.13, step=-0.001))
+# epsilons = collect(range(0.13, 0.05, step=-0.01))
+epsilons = collect(range(0.05, 0.01, step=-0.005))
+
+
+@show epsilons
 
 Xs = []
 Ps = []
@@ -170,8 +185,8 @@ for e in epsilons
     # Plotting.s()
 end
 
-Serialization.serialize("case_4_branch_1.dat", Xs)
-Serialization.serialize("case_4_branch_1_P.dat", Ps)
+Serialization.serialize("case_6_branch_1.dat", Xs)
+Serialization.serialize("case_6_branch_1_P.dat", Ps)
 
 # for r in Xs
     # Plotting.plot(P, r)

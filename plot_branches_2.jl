@@ -17,14 +17,10 @@ function plotall(case::Int)
         eps_c = [0.353553390593273; 0.23570226039551584]
         title = "β = 1 + (ρ-1) + 1/2 (ρ-1)²"
     elseif case == 2
-        # fn_Xs_b1 = "results_case_2/rerun-1.8/branch_1_rerun.dat"
-        # fn_Ps_b1 = "results_case_2/rerun-1.8/branch_1_rerun_P.dat"
-        # fn_Xs_b2 = "results_case_2/rerun-1.8/branch_2_rerun.dat"
-        # fn_Ps_b2 = "results_case_2/rerun-1.8/branch_2_rerun_P.dat"
-        fn_Xs_b1 = "results_case_2/branch_1_new.dat"
-        fn_Ps_b1 = "results_case_2/branch_1_new_P.dat"
-        fn_Xs_b2 = "results_case_2/branch_2_new.dat"
-        fn_Ps_b2 = "results_case_2/branch_2_new_P.dat"
+        fn_Xs_b1 = "results_case_2/branch_1.dat"
+        fn_Ps_b1 = "results_case_2/branch_1_P.dat"
+        fn_Xs_b2 = "results_case_2/branch_2.dat"
+        fn_Ps_b2 = "results_case_2/branch_2_P.dat"
         eps_c = [1.118033988749895; 0.7453559924999299]
         title = "β = 1 - 2 (ρ-1) - (ρ-1)² + 20 (ρ-1)^4"
     elseif case == 3
@@ -35,12 +31,19 @@ function plotall(case::Int)
         eps_c = [0.6123724356957945; 0.408248290463863]
         title = "β = 1 - 1 (ρ-1) - 1/2 (ρ-1)² + 20 (ρ-1)^4"
     elseif case == 4
-        fn_Xs_b1 = "results_case_4/branch_1_new.dat"
-        fn_Ps_b1 = "results_case_4/branch_1_new_P.dat"
-        fn_Xs_b2 = "results_case_4/branch_1.dat"
-        fn_Ps_b2 = "results_case_4/branch_1_P.dat"
+        fn_Xs_b1 = "results_case_4/branch_1.dat"
+        fn_Ps_b1 = "results_case_4/branch_1_P.dat"
+        fn_Xs_b2 = "results_case_4/branch_2.dat"
+        fn_Ps_b2 = "results_case_4/branch_2_P.dat"
         eps_c = [0.3535533905932738; 0.23570226039551584]
         title = "β = 1 - 1 (ρ-1) + 1/2 (ρ-1)²"
+    elseif case == 5
+        fn_Xs_b1 = "results_case_5/branch_1.dat"
+        fn_Ps_b1 = "results_case_5/branch_1_P.dat"
+        fn_Xs_b2 = "results_case_5/branch_1.dat"
+        fn_Ps_b2 = "results_case_5/branch_1_P.dat"
+        eps_c = [0.13635890143294643]
+        title = "β = 1 - 1.3 (ρ-1) + 1/2 (ρ-1)² + lower bound on ρ"
     else
         error("case not done")
     end
@@ -78,7 +81,6 @@ function plotall(case::Int)
     xy1[2,:] = [Δs 0]
 
     for i in 1:length(Xs_b1)
-        # Ps_b1[i].epsilon = epsilons_b1[i]
         P = Ps_b1[i]
         (mass_energy_b1[i], bending_energy_b1[i]) = Bend.compute_energy_split(P, matrices, Xs_b1[i])
 
@@ -87,17 +89,12 @@ function plotall(case::Int)
     end
 
     for i in 1:length(Xs_b2)
-        # Ps_b2[i].epsilon = epsilons_b2[i]
         P = Ps_b2[i]
         (mass_energy_b2[i], bending_energy_b2[i]) = Bend.compute_energy_split(P, matrices, Xs_b2[i])
 
         c = Bend.X2candidate(P, Xs_b2[i])
         min_rho_b2[i], max_rho_b2[i] = extrema(c.ρ)
     end
-
-    # idx_sort = sortperm(epsilons_b1)
-    # itp_energy_b1 = Interpolations.LinearInterpolation(epsilons_b1[idx_sort], energy_b1[idx_sort])
-    # energy_diff = itp_energy_b1(epsilons_b2) - energy_b2
 
     fig = PyPlot.figure(dpi=50)
     ax1 = PyPlot.subplot(241)
@@ -186,6 +183,7 @@ function plotall(case::Int)
                 ax[k].set_title("2D visualisation")
 
                 ax_rho[k].plot(t, c.ρ, color=color[k])
+                ax_rho[k].axhline(0, color="black", lw=0.5)
                 ax_rho[k].set_title("ρ")
 
                 ax_theta[k].plot(t, θ_dot, color=color[k])
@@ -233,7 +231,8 @@ function plotall(case::Int)
     PyPlot.show()
 end
 
-plotall(1)
-plotall(2)
-plotall(3)
+# plotall(1)
+# plotall(2)
+# plotall(3)
 plotall(4)
+# plotall(5)

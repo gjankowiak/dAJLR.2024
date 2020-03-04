@@ -56,4 +56,4 @@ function concat(params_fn_1, params_fn_2; reverse_first::Bool=false, reverse_sec
 
 end
 
-concat(ARGS[1], ARGS[2]; reverse_second=true)
+concat(ARGS[1], ARGS[2]; keep_sorted=true, keep_unique=true)

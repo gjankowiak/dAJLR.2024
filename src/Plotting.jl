@@ -51,6 +51,8 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax4.relim()
         ax4.autoscale_view(true,true,true)
 
+        PyPlot.suptitle("epsilon: " * string(P.epsilon))
+
         PyPlot.draw()
     else
         ax1 = figure.add_subplot(221)

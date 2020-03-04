@@ -210,7 +210,9 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
 
         # Check that rho is within admissible bounds
         # IF not, reduce step size
-        if ((P.potential_range > 0) && (maximum(cnew.ρ) > P.ρ_max))
+        if ((P.potential_range > 0) &&
+            ((P.ρ_max >= 0 && (maximum(cnew.ρ) > P.ρ_max)) ||
+             (P.ρ_max < 0 && (minimum(cnew.ρ) < P.ρ_max))))
             t /= 2
             print("Rho above bound, reducing relaxation parameter to: ")
             println(t)
@@ -367,12 +369,6 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
 
     A_E2_λx = -sin.(c.θ)
     A_E2_λy =  cos.(c.θ)
-
-    # FIXME
-    # A_E2_ρ  *= 1e4
-    # A_E2_θ  *= 1e4
-    # A_E2_λx *= 1e4
-    # A_E2_λy *= 1e4
 
     A_c1θ = -P.Δs*sin.(c.θ)'
     A_c2θ = P.Δs*cos.(c.θ)'
@@ -539,7 +535,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude
 
     t = collect(range(0, 2π, length=N+1)[1:N])
     if pulse > 0
-        thetas += pulse_amplitude/pulse*sin.(pulse*t[2:N])
+        thetas += 0pulse_amplitude/pulse*sin.(pulse*t[2:N])
     end
     rhos = P.M/2π*ones(N)
     if pulse > 0
@@ -571,17 +567,19 @@ function g_pp(x::Vector{Float64}, α::Float64)
 end
 
 function compute_potential(P::Params, X::Vector{Float64})
-    α = P.potential_range
+    α = 1/P.potential_range
     ρ_max = P.ρ_max
     c = X2candidate(P, X)
 
     factor = 1e1
 
-    @show minimum(ρ_max .- c.ρ)
+    # Hack to cope with lack of ρ_min
+    # If ρ_max is negative, with interpret -ρ_max as ρ_min
+    s = sign(ρ_max)
 
-    w = factor*g(ρ_max .- c.ρ, α)
-    w_prime = factor*g_p(ρ_max .- c.ρ, α)
-    w_second = factor*g_pp(ρ_max .- c.ρ, α)
+    w = factor*g(s*(s*ρ_max .- c.ρ), α)
+    w_prime = factor*g_p(s*(s*ρ_max .- c.ρ), α)
+    w_second = factor*g_pp(s*(s*ρ_max .- c.ρ), α)
 
     return (w, w_prime, w_second)
 end
