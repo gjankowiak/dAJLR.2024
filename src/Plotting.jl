@@ -42,6 +42,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax2.lines[1].set_data(t, c.ρ)
         θ_dot = Bend.compute_centered_fd_θ(P, matrices, c.θ)
         ax3.lines[1].set_data(t, θ_dot)
+        ax3.lines[2].set_data(t[2:end], c.θ - t[2:end])
         ax4.lines[1].set_data(t, Bend.compute_beta(P, c.ρ))
 
         ax2.relim()
@@ -52,6 +53,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax4.autoscale_view(true,true,true)
 
         PyPlot.suptitle("epsilon: " * string(P.epsilon))
+        @show P.epsilon
 
         PyPlot.draw()
     else
@@ -76,6 +78,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
 
         θ_dot = Bend.compute_centered_fd_θ(P, matrices, c.θ)
         ax3.plot(t, θ_dot, label=label)
+        ax3.plot(t[2:end], c.θ .- t[2:end], label=label)
         ax3.set_title("d/ds θ")
         ax3.axhline(0, color="black", lw=0.5)
         # ax3.set_ylim(0, 2π)

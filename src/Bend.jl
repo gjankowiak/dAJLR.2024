@@ -314,6 +314,80 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
     end
 end
 
+function flow(P::Params, Xinit::Vector{Float64}, time_step::Float64, SP::SolverParams=default_SP)
+    matrices = assemble_fd_matrices(P)
+
+    # Initialization
+    history = History(0, zeros(2*P.N+2 + P.center_ρ))
+
+    X = Base.copy(Xinit)
+    n = 1
+    step_size = SP.step_size
+
+    residual = compute_residual(P, matrices, X)
+
+    energy_i = zeros(SP.max_iter)
+    residual_norm_i = zeros(SP.max_iter)
+
+    energy_i[1] = compute_energy(P, matrices, X)
+    residual_norm_i[1] = LA.norm(residual)
+
+    history.energy_prev = energy_i[1]
+    history.residual_prev .= residual
+
+    id_matrix = Matrix{Float64}(LA.I, 2P.N+2, 2P.N+2)
+    for i in (2P.N-1:2P.N+2)
+        id_matrix[i,i] = 0
+    end
+
+    X_prev = Base.copy(X)
+
+    # Loop until tolerance or max. iterations is met
+    function ()
+        n += 1
+
+        residual = compute_residual(P, matrices, X)
+        residual_norm = LA.norm(residual)
+
+        # inner loop
+        k = 1
+        while k < 10
+            # Assemble
+            A = assemble_inner_system(P, matrices, X)
+
+            # Solve
+            δX = (-id_matrix .+ time_step*A)\(id_matrix*(X .- X_prev) .- time_step*residual)
+
+            # Update
+            X += δX
+            k += 1
+
+            residual = compute_residual(P, matrices, X)
+            residual_norm = LA.norm(residual)
+            r_residual_norm = LA.norm(id_matrix*(X .- X_prev) .- time_step*residual)
+
+            if r_residual_norm < 1e-10
+                break
+            end
+        end
+        #println("inner loop end residual norm: ", residual_norm)
+        X_prev .= X
+
+        # Compute residual norm and energy
+        energy = compute_energy(P, matrices, X)
+        energy_i[n] = energy
+        residual_norm_i[n] = residual_norm
+
+        converged = (LA.norm(residual - history.residual_prev) < SP.rtol) || (LA.norm(residual) < SP.atol)
+
+        history.energy_prev = energy
+        history.residual_prev = residual
+
+        res = Result(X, n, energy_i, residual_norm_i, converged, converged || (n>=SP.max_iter))
+        return res
+    end
+end
+
 function compute_energy_split(P::Params, matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
     ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
@@ -468,7 +542,7 @@ function assemble_fd_matrices(P::Params)
                      )
 end
 
-function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false)
+function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
     if P.N % sides != 0
         error("N must be dividible by the number of sides")
     end
@@ -480,8 +554,12 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     k = Int64(P.N / sides)
     N_straight = floor(Int64, P.N/sides*(1-smoothing))
 
-    thetas_1p = [zeros(N_straight); [2π/sides - i*P.Δs/smoothing for i in (k-N_straight-1):-1:0]]
-    thetas = repeat(thetas_1p, sides) + repeat(2π/sides*(0:sides-1), inner=k)
+    if only_rho
+        thetas = collect(range(0, 2π, length=P.N+1))[1:end-1]
+    else
+        thetas_1p = [zeros(N_straight); [2π/sides - i*P.Δs/smoothing for i in (k-N_straight-1):-1:0]]
+        thetas = repeat(thetas_1p, sides) + repeat(2π/sides*(0:sides-1), inner=k)
+    end
 
     if reverse_phase
         rho = sin.(range(0, π, length=N_straight))
@@ -500,7 +578,7 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     end
 end
 
-function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false)
+function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
     N = P.N
 
     # Construct the ellipsis and reparameterize it
@@ -534,17 +612,24 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude
     end
 
     t = collect(range(0, 2π, length=N+1)[1:N])
+
     if pulse > 0
-        thetas += 0pulse_amplitude/pulse*sin.(pulse*t[2:N])
+        thetas += P.beta_m/P.beta_j*pulse_amplitude*sin.(pulse*t[2:N])
     end
+
     rhos = P.M/2π*ones(N)
+
     if pulse > 0
         if reverse_phase
-            f = sin
+            f = -1
         else
-            f = cos
+            f = 1
         end
-        rhos -= pulse_amplitude*P.M/2π/pulse*f.(pulse*t)
+        rhos -= pulse_amplitude*f*cos.(pulse*t)
+    end
+
+    if only_rho
+        thetas = collect(range(0, 2π, length=P.N+1))[2:end-1]
     end
 
     if P.center_ρ
@@ -582,6 +667,23 @@ function compute_potential(P::Params, X::Vector{Float64})
     w_second = factor*g_pp(s*(s*ρ_max .- c.ρ), α)
 
     return (w, w_prime, w_second)
+end
+
+function candidate_multipliers(P::Params, X::Vector{Float64}, matrices::FDMatrices)
+    c = X2candidate(P, X)
+
+    beta_ρ = compute_beta(P, c.ρ)
+    beta_prime_ρ = compute_beta_prime(P, c.ρ)
+
+    θ_prime = compute_centered_fd_θ(P, matrices, c.θ)
+
+    beta_θ_prime_sq = beta_ρ .* θ_prime.^2
+
+    λM = P.Δs * sum(beta_prime_ρ .* θ_prime.^2) / (4π)
+    λx = -P.Δs * sum(beta_θ_prime_sq .* [1; cos.(c.θ)]) / π
+    λy = -P.Δs * sum(beta_θ_prime_sq .* [0; sin.(c.θ)]) / π
+
+    return (λM, λx, λy)
 end
 
 end # module

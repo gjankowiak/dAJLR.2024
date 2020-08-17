@@ -1,8 +1,8 @@
 push!(LOAD_PATH, "src")
 
 import Bend
-import Plotting
-import PyPlot
+# import Plotting
+# import PyPlot
 import Serialization
 
 fn_X = ARGS[1]
@@ -39,12 +39,12 @@ for (i,P) in enumerate(Ps_old)
     Xx .= Xs_old[i]
 
     # change parameters
-    # P.beta_m = -1.8
+    P.beta_m = 2e-1
     # P.beta_h = -1.8
-    P.beta_k = 0
+    # P.beta_k = 2
 
-    f = Plotting.init(P)
-    Plotting.plot(f, P, Xx)
+    # f = Plotting.init(P)
+    # Plotting.plot(f, P, Xx)
 
     minimizor = Bend.minimizor(P, Xx, solver_params)
 
@@ -64,7 +64,7 @@ for (i,P) in enumerate(Ps_old)
             print(res.energy_i[n])
             print(", residual norm: ")
             println(res.residual_norm_i[n])
-            Plotting.plot(f, P, res.sol)
+            # Plotting.plot(f, P, res.sol)
         else
             print(".")
         end
