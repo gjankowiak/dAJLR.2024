@@ -25,11 +25,11 @@ beta_rho0  = M/2π
 beta_m     = -2
 beta_h     = -2
 beta_k     = 20
-beta_j     = 4
+mode_j     = 4
 
 P_3 = Bend.Params(N, Δs,
                   M, epsilon, rho_max,
-                  beta_0, beta_rho0, beta_m, beta_h, beta_k, beta_j,
+                  beta_0, beta_rho0, beta_m, beta_h, beta_k, mode_j,
                   potential_range, center_rho)
 
 P = P_3

@@ -129,8 +129,8 @@ function follow_branch(P, eps_delta, n_samples; eps_start=0.0, eps_direction=0.0
     Ps = []
 
     Z = bigZ2(P.beta_m, P.beta_h)
-    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.beta_j^2)
-    amp = sqrt(abs(P.beta_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
+    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.mode_j^2)
+    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
 
     if eps_start > 0.0
         if eps_direction == 0.0
@@ -155,11 +155,11 @@ function follow_branch(P, eps_delta, n_samples; eps_start=0.0, eps_direction=0.0
     P.epsilon = epsilons[1]
 
     @show Z
-    println("j:", P.beta_j, ", eps: ", eps_c)
+    println("j:", P.mode_j, ", eps: ", eps_c)
     println(", amplitude: ", amp)
 
     if fn_xinit == ""
-        Xinit = Bend.initial_data(P, 1, 1, pulse=P.beta_j, pulse_amplitude=1e0*amp*sqrt(abs(eps_c - epsilons[1])), reverse_phase=false, only_rho=false)
+        Xinit = Bend.initial_data(P, 1, 1, pulse=P.mode_j, pulse_amplitude=1e0*amp*sqrt(abs(eps_c - epsilons[1])), reverse_phase=false, only_rho=false)
     else
         Xinit = Serialization.deserialize(fn_xinit)[end]
         @show Xinit
@@ -261,11 +261,11 @@ function follow_branch_decoupled(P, eps_delta, n_samples; eps_start=0.0, eps_dir
     @show epsilons
 
 
-    println("j:", P.beta_j, ", eps: ", eps_c)
+    println("j:", P.mode_j, ", eps: ", eps_c)
     println(", amplitude: ", amp)
 
     if fn_xinit == ""
-        Xinit = Bend.initial_data(P, 1, 1, pulse=P.beta_j, pulse_amplitude=amp*sqrt(abs(eps_c - epsilons[1])), reverse_phase=false, only_rho=false)
+        Xinit = Bend.initial_data(P, 1, 1, pulse=P.mode_j, pulse_amplitude=amp*sqrt(abs(eps_c - epsilons[1])), reverse_phase=false, only_rho=false)
     else
         Xinit = Serialization.deserialize(fn_xinit)[end]
     end
@@ -330,13 +330,13 @@ function find_critical_point(P, eps_delta)
     Xs = []
     Ps = []
 
-    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.beta_j^2)
+    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.mode_j^2)
     Z = bigZ2(P.beta_m, P.beta_h)
-    amp = sqrt(abs(P.beta_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
+    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
 
     println("2m^2 - h = ", 2*P.beta_m^2 - P.beta_h)
 
-    print("j:", P.beta_j, ", eps: ", eps_c)
+    print("j:", P.mode_j, ", eps: ", eps_c)
     print(", amplitude: ", amp)
     if Z > 0
         println(", supercritical")

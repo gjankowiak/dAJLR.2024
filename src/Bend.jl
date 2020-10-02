@@ -27,7 +27,7 @@ mutable struct Params
     beta_m::Float64
     beta_h::Float64
     beta_k::Float64
-    beta_j::Int64
+    mode_j::Int64
 
     # rho bound parameters
     potential_range::Float64
@@ -105,7 +105,7 @@ function copy(P::Params)
     P.N, P.Δs, P.M,
     P.epsilon, P.ρ_max, P.beta_0,
     P.beta_rho0, P.beta_m, P.beta_h,
-    P.beta_k, P.beta_j, P.potential_range,
+    P.beta_k, P.mode_j, P.potential_range,
     P.center_ρ)
 end
 
@@ -618,7 +618,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude
     t = collect(range(0, 2π, length=N+1)[1:N])
 
     if pulse > 0
-        thetas += P.beta_m/P.beta_j*pulse_amplitude*sin.(pulse*t[2:N])
+        thetas += P.beta_m/P.mode_j*pulse_amplitude*sin.(pulse*t[2:N])
     end
 
     rhos = P.M/2π*ones(N)
