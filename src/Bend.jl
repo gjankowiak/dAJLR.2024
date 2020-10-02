@@ -38,6 +38,36 @@ mutable struct Params
     center_ρ::Bool
 end
 
+mutable struct Params_v2
+    # Discretization parameters
+    N::Int64
+    Δs::Float64
+
+    # Model parameters
+    M::Float64
+    epsilon::Float64
+    ρ_max::Float64
+
+    # Beta parameters
+    beta_0::Float64
+    beta_rho0::Float64
+    beta_a1::Float64
+    beta_a2::Float64
+    beta_a3::Float64
+    beta_a4::Float64
+
+    # mode number
+    mode_j::Int64
+
+    # rho bound parameters
+    potential_range::Float64
+
+    # solver parameters
+    center_ρ::Bool
+end
+
+const ParamsUnion = Union{Params,Params_v2}
+
 mutable struct SolverParams
     atol::Float64
     rtol::Float64
@@ -107,7 +137,18 @@ function copy(P::Params)
     P.N, P.Δs, P.M,
     P.epsilon, P.ρ_max, P.beta_0,
     P.beta_rho0, P.beta_a1, P.beta_a2,
-    P.beta_a4, P.mode_j, P.potential_range,
+    P.beta_a4,
+    P.mode_j, P.potential_range,
+    P.center_ρ)
+end
+
+function copy(P::Params_v2)
+    return Params_v2(
+    P.N, P.Δs, P.M,
+    P.epsilon, P.ρ_max, P.beta_0,
+    P.beta_rho0, P.beta_a1, P.beta_a2,
+    P.beta_a3, P.beta_a4,
+    P.mode_j, P.potential_range,
     P.center_ρ)
 end
 
@@ -128,7 +169,7 @@ function prompt_yes_no(s::String, default_yes::Bool=false)
     end
 end
 
-function X2candidate(P::Params, X; copy::Bool=false)
+function X2candidate(P::ParamsUnion, X; copy::Bool=false)
     if P.center_ρ
         if copy
             return Candidate(X[1:P.N],
@@ -172,22 +213,61 @@ function candidate2X(P, c::Candidate)
     end
 end
 
+function ParamsToParams_v2(P1::Params)
+    return Params_v2(
+                   P1.N,
+                   P1.Δs,
+                   P1.M,
+                   P1.epsilon,
+                   P1.ρ_max,
+                   P1.beta_0,
+                   P1.beta_rho0,
+                   P1.beta_a1,
+                   P1.beta_a2,
+                   0.0,
+                   P1.beta_a4,
+                   P1.mode_j,
+                   P1.potential_range,
+                   P1.center_ρ)
+end
+
 function compute_beta(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
     return P.beta_0*(1 .+
                          P.beta_a1*(rho.-P.beta_rho0) +
                      0.5*P.beta_a2*(rho.-P.beta_rho0).^2 +
-                     1/4*P.beta_a4*(rho.-P.beta_rho0).^4)
+                     0.041666666666666664*P.beta_a4*(rho.-P.beta_rho0).^4)
 end
 
 function compute_beta_prime(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
     return P.beta_0*(P.beta_a1*ones(size(rho)) +
                      P.beta_a2*(rho.-P.beta_rho0) +
-                     P.beta_a4*(rho.-P.beta_rho0).^3)
+                     0.16666666666666666*P.beta_a4*(rho.-P.beta_rho0).^3)
 end
 
 function compute_beta_second(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(  P.beta_a2*ones(size(rho)) +
-                     3*P.beta_a4*(rho.-P.beta_rho0).^2)
+    return P.beta_0*(P.beta_a2*ones(size(rho)) +
+                     0.5*P.beta_a4*(rho.-P.beta_rho0).^2)
+end
+
+function compute_beta(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
+    return P.beta_0*(1 .+
+                         P.beta_a1*(rho.-P.beta_rho0) +
+                     0.5*P.beta_a2*(rho.-P.beta_rho0).^2 +
+                     0.16666666666666666*P.beta_a3*(rho.-P.beta_rho0).^3 +
+                     0.041666666666666664*P.beta_a4*(rho.-P.beta_rho0).^4)
+end
+
+function compute_beta_prime(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
+    return P.beta_0*(P.beta_a1*ones(size(rho)) +
+                     P.beta_a2*(rho.-P.beta_rho0) +
+                     0.5*P.beta_a3*(rho.-P.beta_rho0).^2 +
+                     0.16666666666666666*P.beta_a4*(rho.-P.beta_rho0).^3)
+end
+
+function compute_beta_second(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
+    return P.beta_0*(P.beta_a2*ones(size(rho)) +
+                     P.beta_a3*(rho.-P.beta_rho0) +
+                     0.5*P.beta_a4*(rho.-P.beta_rho0).^2)
 end
 
 """
@@ -199,7 +279,7 @@ end
     * λM = X[2*P.N+2]
 """
 
-function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
+function adapt_step(P::ParamsUnion, SP::SolverParams, matrices::FDMatrices,
                     X::Vector{Float64}, δX::Vector{Float64}, current_residual::Vector{Float64},
                     current_step_size::Float64, history::History)
 
@@ -262,7 +342,7 @@ function adapt_step(P::Params, SP::SolverParams, matrices::FDMatrices,
     return Xnew, residual, t
 end
 
-function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_SP)
+function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=default_SP)
     matrices = assemble_fd_matrices(P)
 
     # Initialization
@@ -320,7 +400,7 @@ function minimizor(P::Params, Xinit::Vector{Float64}, SP::SolverParams=default_S
     end
 end
 
-function flow(P::Params, Xinit::Vector{Float64}, time_step::Float64, SP::SolverParams=default_SP)
+function flow(P::ParamsUnion, Xinit::Vector{Float64}, time_step::Float64, SP::SolverParams=default_SP)
     matrices = assemble_fd_matrices(P)
 
     # Initialization
@@ -394,7 +474,7 @@ function flow(P::Params, Xinit::Vector{Float64}, time_step::Float64, SP::SolverP
     end
 end
 
-function compute_energy_split(P::Params, matrices::FDMatrices, X::Vector{Float64})
+function compute_energy_split(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
     ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
     θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
@@ -402,7 +482,7 @@ function compute_energy_split(P::Params, matrices::FDMatrices, X::Vector{Float64
     return (0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2), 0.5P.Δs*sum(beta.*θ_dot.^2))
 end
 
-function compute_energy(P::Params, matrices::FDMatrices, X::Vector{Float64})
+function compute_energy(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
     ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
     θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
@@ -415,7 +495,7 @@ function compute_energy(P::Params, matrices::FDMatrices, X::Vector{Float64})
     return E
 end
 
-function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float64})
+function assemble_inner_system(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
     N = P.N
     Δs = P.Δs
 
@@ -474,7 +554,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     return A
 end
 
-function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
+function compute_residual(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
     N = P.N
     Δs = P.Δs
 
@@ -506,16 +586,16 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
     end
 end
 
-function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
+function compute_fd_θ(P::ParamsUnion, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
     return (fd, view(fd, 1:P.N-1), view(fd, 2:P.N))
 end
 
-function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
+function compute_centered_fd_θ(P::ParamsUnion, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     return matrices.D1c*θ + matrices.D1c_rhs
 end
 
-function assemble_fd_matrices(P::Params)
+function assemble_fd_matrices(P::ParamsUnion)
     N = P.N
     Δs = P.Δs
 
@@ -548,7 +628,7 @@ function assemble_fd_matrices(P::Params)
                      )
 end
 
-function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
+function initial_data_smooth(P::ParamsUnion; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
     if P.N % sides != 0
         error("N must be dividible by the number of sides")
     end
@@ -584,7 +664,7 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     end
 end
 
-function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
+function initial_data(P::ParamsUnion, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
     N = P.N
 
     # Construct the ellipsis and reparameterize it
@@ -657,7 +737,7 @@ function g_pp(x::Vector{Float64}, α::Float64)
     return @. -(2α^2*(x<(1/α))*log(α*x) + 4α*min(α*x-1, 0.0)/x - min(α*x-1, 0.0)^2/x^2)
 end
 
-function compute_potential(P::Params, X::Vector{Float64})
+function compute_potential(P::ParamsUnion, X::Vector{Float64})
     α = 1/P.potential_range
     ρ_max = P.ρ_max
     c = X2candidate(P, X)
@@ -675,7 +755,7 @@ function compute_potential(P::Params, X::Vector{Float64})
     return (w, w_prime, w_second)
 end
 
-function candidate_multipliers(P::Params, X::Vector{Float64}, matrices::FDMatrices)
+function candidate_multipliers(P::ParamsUnion, X::Vector{Float64}, matrices::FDMatrices)
     c = X2candidate(P, X)
 
     beta_ρ = compute_beta(P, c.ρ)

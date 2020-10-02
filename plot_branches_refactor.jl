@@ -106,7 +106,7 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
     n_branches = length(fns_Xs)
 
     l_Xs = Dict{Int64,Array{Vector{Float64},1}}()
-    l_Ps = Dict{Int64,Array{Bend.Params,1}}()
+    l_Ps = Dict{Int64,Array{Bend.ParamsUnion,1}}()
 
     l_epsilons = Dict{Int64, Vector{Float64}}()
     l_mass_energy = Dict{Int64, Vector{Float64}}()
