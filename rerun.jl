@@ -39,7 +39,7 @@ for (i,P) in enumerate(Ps_old)
     Xx .= Xs_old[i]
 
     # change parameters
-    P.beta_m = 2e-1
+    # P.beta_m = 2e-1
     # P.beta_h = -1.8
     # P.beta_k = 2
 

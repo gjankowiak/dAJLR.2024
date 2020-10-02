@@ -162,8 +162,12 @@ function X2candidate(P::Params, X; copy::Bool=false)
     end
 end
 
-function candidate2X(c::Candidate)
-    return c.parent
+function candidate2X(P, c::Candidate)
+    if P.center_ρ
+        return [c.ρ; c.θ; c.λx; c.λy; c.λM; c.λcm]
+    else
+        return [c.ρ; c.θ; c.λx; c.λy; c.λM]
+    end
 end
 
 function compute_beta(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
