@@ -169,13 +169,13 @@ function plotall(case::Int)
     ax3.plot(epsilons_b2, min_rho_b2, label="branch 1", ".-", color=color[2])
     ax3.plot(epsilons_b2, max_rho_b2, label="branch 1", ".-", color=color[2])
 
-    Z = bigZ2(P.beta_m, P.beta_h)
-    @show P.beta_m
-    @show P.beta_h
+    Z = bigZ2(P.beta_a1, P.beta_a2)
+    @show P.beta_a1
+    @show P.beta_a2
     @show Z
 
-    amp_b1 = sqrt.(ifelse.((sign(Z).*(eps_c[1] .- epsilons_b1) .> 0), sign(Z).*(eps_c[1] .- epsilons_b1), NaN)).*amp2(P.beta_m, P.beta_h, 2)
-    amp_b2 = sqrt.(ifelse.((sign(Z).*(eps_c[2] .- epsilons_b2) .> 0), sign(Z).*(eps_c[2] .- epsilons_b2), NaN)).*amp2(P.beta_m, P.beta_h, 3)
+    amp_b1 = sqrt.(ifelse.((sign(Z).*(eps_c[1] .- epsilons_b1) .> 0), sign(Z).*(eps_c[1] .- epsilons_b1), NaN)).*amp2(P.beta_a1, P.beta_a2, 2)
+    amp_b2 = sqrt.(ifelse.((sign(Z).*(eps_c[2] .- epsilons_b2) .> 0), sign(Z).*(eps_c[2] .- epsilons_b2), NaN)).*amp2(P.beta_a1, P.beta_a2, 3)
 
     println(size(amp_b1))
     println(size(epsilons_b1))
@@ -186,7 +186,7 @@ function plotall(case::Int)
 
     ax3.axhline(1.0, label="circle", color="black")
     for j in [2, 3]
-        ax3.axvline(eps_critical(P.beta_m, P.beta_h, j), color="black", lw=0.5)
+        ax3.axvline(eps_critical(P.beta_a1, P.beta_a2, j), color="black", lw=0.5)
     end
     ax3.set_ylabel("Min/max rho")
     ax3.legend()

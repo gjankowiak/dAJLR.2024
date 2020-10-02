@@ -22,14 +22,14 @@ step_size = 1e-3
 
 beta_0 = 1
 beta_rho0  = M/2π
-beta_m     = -2
-beta_h     = -2
-beta_k     = 20
+beta_a1     = -2
+beta_a2     = -2
+beta_a4     = 20
 mode_j     = 4
 
 P_3 = Bend.Params(N, Δs,
                   M, epsilon, rho_max,
-                  beta_0, beta_rho0, beta_m, beta_h, beta_k, mode_j,
+                  beta_0, beta_rho0, beta_a1, beta_a2, beta_a4, mode_j,
                   potential_range, center_rho)
 
 P = P_3

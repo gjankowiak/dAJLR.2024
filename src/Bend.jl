@@ -24,9 +24,11 @@ mutable struct Params
     # Beta parameters
     beta_0::Float64
     beta_rho0::Float64
-    beta_m::Float64
-    beta_h::Float64
-    beta_k::Float64
+    beta_a1::Float64
+    beta_a2::Float64
+    beta_a4::Float64
+
+    # mode number
     mode_j::Int64
 
     # rho bound parameters
@@ -104,8 +106,8 @@ function copy(P::Params)
     return Params(
     P.N, P.Δs, P.M,
     P.epsilon, P.ρ_max, P.beta_0,
-    P.beta_rho0, P.beta_m, P.beta_h,
-    P.beta_k, P.mode_j, P.potential_range,
+    P.beta_rho0, P.beta_a1, P.beta_a2,
+    P.beta_a4, P.mode_j, P.potential_range,
     P.center_ρ)
 end
 
@@ -172,20 +174,20 @@ end
 
 function compute_beta(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
     return P.beta_0*(1 .+
-                         P.beta_m*(rho.-P.beta_rho0) +
-                     0.5*P.beta_h*(rho.-P.beta_rho0).^2 +
-                     1/4*P.beta_k*(rho.-P.beta_rho0).^4)
+                         P.beta_a1*(rho.-P.beta_rho0) +
+                     0.5*P.beta_a2*(rho.-P.beta_rho0).^2 +
+                     1/4*P.beta_a4*(rho.-P.beta_rho0).^4)
 end
 
 function compute_beta_prime(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_m*ones(size(rho)) +
-                     P.beta_h*(rho.-P.beta_rho0) +
-                     P.beta_k*(rho.-P.beta_rho0).^3)
+    return P.beta_0*(P.beta_a1*ones(size(rho)) +
+                     P.beta_a2*(rho.-P.beta_rho0) +
+                     P.beta_a4*(rho.-P.beta_rho0).^3)
 end
 
 function compute_beta_second(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(  P.beta_h*ones(size(rho)) +
-                     3*P.beta_k*(rho.-P.beta_rho0).^2)
+    return P.beta_0*(  P.beta_a2*ones(size(rho)) +
+                     3*P.beta_a4*(rho.-P.beta_rho0).^2)
 end
 
 """
@@ -424,7 +426,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     beta_prime_ρ = compute_beta_prime(P, c.ρ)
     beta_second_ρ = compute_beta_second(P, c.ρ)
     beta_phalf = compute_beta(P, matrices.M_phalf*c.ρ)[2:end]
-    beta_mhalf = compute_beta(P, matrices.M_mhalf*c.ρ)[2:end]
+    beta_a1half = compute_beta(P, matrices.M_mhalf*c.ρ)[2:end]
     beta_prime_phalf = compute_beta_prime(P, matrices.M_phalf*c.ρ)
     beta_prime_mhalf = compute_beta_prime(P, matrices.M_mhalf*c.ρ)
 
@@ -443,7 +445,7 @@ function assemble_inner_system(P::Params, matrices::FDMatrices, X::Vector{Float6
     A_E1_λM = ones(N)
 
     A_E2_ρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*θ_prime_up.*matrices.M_mhalf[2:N,:])/Δs
-    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_mhalf.*matrices.D1[1:N-1,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
+    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_a1half.*matrices.D1[1:N-1,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
 
     A_E2_λx = -sin.(c.θ)
     A_E2_λy =  cos.(c.θ)
@@ -482,7 +484,7 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
     # Compute beta and derivatves
     beta_prime_ρ = compute_beta_prime(P, c.ρ)
     beta_phalf = compute_beta(P, matrices.M_phalf*c.ρ)[2:N]
-    beta_mhalf = compute_beta(P, matrices.M_mhalf*c.ρ)[2:N]
+    beta_a1half = compute_beta(P, matrices.M_mhalf*c.ρ)[2:N]
 
     # Compute upstream and downstream finite differences of θ
     θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
@@ -494,7 +496,7 @@ function compute_residual(P::Params, matrices::FDMatrices, X::Vector{Float64})
         b_E1 -= w_prime
     end
     # Compute residuals for θ
-    b_E2 = (beta_phalf.*θ_prime_down - beta_mhalf.*θ_prime_up)/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
+    b_E2 = (beta_phalf.*θ_prime_down - beta_a1half.*θ_prime_up)/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
 
     # Assemble with constraint residuals
     if P.center_ρ
@@ -618,7 +620,7 @@ function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude
     t = collect(range(0, 2π, length=N+1)[1:N])
 
     if pulse > 0
-        thetas += P.beta_m/P.mode_j*pulse_amplitude*sin.(pulse*t[2:N])
+        thetas += P.beta_a1/P.mode_j*pulse_amplitude*sin.(pulse*t[2:N])
     end
 
     rhos = P.M/2π*ones(N)

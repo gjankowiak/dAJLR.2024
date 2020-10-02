@@ -128,9 +128,9 @@ function follow_branch(P, eps_delta, n_samples; eps_start=0.0, eps_direction=0.0
     Xs = []
     Ps = []
 
-    Z = bigZ2(P.beta_m, P.beta_h)
-    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.mode_j^2)
-    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
+    Z = bigZ2(P.beta_a1, P.beta_a2)
+    eps_c = sqrt((P.beta_a1^2 - P.beta_a2/2)/P.mode_j^2)
+    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_a1^2 - P.beta_a2)/Z))
 
     if eps_start > 0.0
         if eps_direction == 0.0
@@ -232,11 +232,11 @@ function follow_branch_decoupled(P, eps_delta, n_samples; eps_start=0.0, eps_dir
     Xs = []
     Ps = []
 
-    if P.beta_m != 0 || P.beta_h >= 0
+    if P.beta_a1 != 0 || P.beta_a2 >= 0
         throw("Parameter m is not zero or h is non negative")
     end
-    eps_c = sqrt(-P.beta_h/2)
-    amp = sqrt(8/P.beta_h^2)
+    eps_c = sqrt(-P.beta_a2/2)
+    amp = sqrt(8/P.beta_a2^2)
 
     if eps_start > 0.0
         if eps_direction == 0.0
@@ -330,11 +330,11 @@ function find_critical_point(P, eps_delta)
     Xs = []
     Ps = []
 
-    eps_c = sqrt((P.beta_m^2 - P.beta_h/2)/P.mode_j^2)
-    Z = bigZ2(P.beta_m, P.beta_h)
-    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_m^2 - P.beta_h)/Z))
+    eps_c = sqrt((P.beta_a1^2 - P.beta_a2/2)/P.mode_j^2)
+    Z = bigZ2(P.beta_a1, P.beta_a2)
+    amp = sqrt(abs(P.mode_j^2*4*(2*P.beta_a1^2 - P.beta_a2)/Z))
 
-    println("2m^2 - h = ", 2*P.beta_m^2 - P.beta_h)
+    println("2m^2 - h = ", 2*P.beta_a1^2 - P.beta_a2)
 
     print("j:", P.mode_j, ", eps: ", eps_c)
     print(", amplitude: ", amp)
