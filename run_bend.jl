@@ -39,21 +39,23 @@ function iterate_filename(pattern)
 end
 
 function follow_branch_any(P, param::Symbol, param_start, param_delta, n_samples; xinit="", prefix="result_#")
+end
+
+function follow_branch_any(P, param::Array{Symbol,1}, param_start::Array{N,1}, param_delta::Array{Tuple{Array{N,1},Int}}, n_samples; xinit="", prefix="result_#") where N <: Real
     Xs = []
     Ps = []
 
-    if param_delta isa Number
-        p = range(param_start, step=param_delta, length=n_samples)
-    else
-        p = Array{Float64,1}()
-        e_last = param_start
-        for (step, n) in param_delta
-            if length(p) == 0
-                p = collect(range(e_last, step=step, length=n))
+    p = [Array{Float64,1}() for i in 1:length(param)]
+
+    e_last = [ps for ps in param_start]
+    for (steps, n) in param_delta
+        for i in 1:length(p)
+            if length(p[i]) == 0
+                p[i] = collect(range(e_last[i], step=steps[i], length=n))
             else
-                p = [p; range(e_last+step, step=step, length=n)]
+                p[i] = [p[i]; range(e_last[i]+steps[i], step=steps[i], length=n)]
             end
-            e_last = p[end]
+            e_last[i] = p[i][end]
         end
     end
 
@@ -70,10 +72,14 @@ function follow_branch_any(P, param::Symbol, param_start, param_delta, n_samples
     f = Plotting.init(P)
     Plotting.plot(f, P, Xx)
 
-    for (k,v) in enumerate(p)
+    for k in 1:length(p[1])
 
-        setproperty!(P, param, v)
-        println(k, "/", length(p), " - ", string(param), ": ", getproperty(P, param))
+        print(k, "/", length(p[1]), " - ")
+        for (i, pp) in enumerate(param)
+            setproperty!(P, pp, p[i][k])
+            print(", ", string(pp), ": ", getproperty(P, pp))
+        end
+        println()
 
         minimizor = Bend.minimizor(P, Xx, solver_params)
 
@@ -410,6 +416,9 @@ end
 #
 # include("params/continue_case_1.1_m-1h-1.jl")
 
-include("params/case_0_m=1.jl")
+# include("params/case_0_m=1.jl")
 
 # include("params/case_0_m=-1.jl")
+
+# include("mystery.jl")
+include("mystery2.jl")

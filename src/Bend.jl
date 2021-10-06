@@ -400,7 +400,7 @@ function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=defa
     end
 end
 
-function flow(P::ParamsUnion, Xinit::Vector{Float64}, time_step::Float64, SP::SolverParams=default_SP)
+function flow(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=default_SP)
     matrices = assemble_fd_matrices(P)
 
     # Initialization
@@ -437,12 +437,12 @@ function flow(P::ParamsUnion, Xinit::Vector{Float64}, time_step::Float64, SP::So
 
         # inner loop
         k = 1
-        while k < 10
+        while k < 2
             # Assemble
             A = assemble_inner_system(P, matrices, X)
 
             # Solve
-            δX = (-id_matrix .+ time_step*A)\(id_matrix*(X .- X_prev) .- time_step*residual)
+            δX = (-id_matrix .+ step_size*A)\(id_matrix*(X .- X_prev) .- step_size*residual)
 
             # Update
             X += δX
@@ -450,7 +450,18 @@ function flow(P::ParamsUnion, Xinit::Vector{Float64}, time_step::Float64, SP::So
 
             residual = compute_residual(P, matrices, X)
             residual_norm = LA.norm(residual)
-            r_residual_norm = LA.norm(id_matrix*(X .- X_prev) .- time_step*residual)
+            r_residual_norm = LA.norm(id_matrix*(X .- X_prev)) / LA.norm(id_matrix*X)
+
+            if SP.adapt
+                step_size_prev = step_size
+                if r_residual_norm > SP.step_down_threshold && step_size > SP.min_step_size
+                    step_size = max(step_size / SP.step_factor, SP.min_step_size)
+                    println("step down [", r_residual_norm, "], (", step_size_prev, " → ", step_size)
+                elseif r_residual_norm < SP.step_up_threshold && step_size < SP.max_step_size
+                    step_size = min(step_size * SP.step_factor, SP.max_step_size)
+                    println("step up [", r_residual_norm, "], (", step_size_prev, " → ", step_size)
+                end
+            end
 
             if r_residual_norm < 1e-10
                 break

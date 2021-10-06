@@ -80,16 +80,16 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
         fns_Ps = ["case11_m=1/stable_m=crit_pre_eps_1_P.dat", "case11_m=1/stable_m=crit_pre_eps_c0_j2_1_P.dat", "case11_m=1/stable_m=crit_pre_eps_c0_j3_1_P.dat", "case11_m=1/stable_m=crit_post_eps_1_P.dat"]
         title = "Case 11 Comparison m=1, j=3"
     elseif case == 201 # unstable high Case 0
-        fns_Xs = ["case0_m=1/unstable_high_j=2_1_new.dat", "case0_m=1/unstable_high_j=3_1_new.dat"]
-        fns_Ps = ["case0_m=1/unstable_high_j=2_1_new_P.dat", "case0_m=1/unstable_high_j=3_1_new_P.dat"]
+        fns_Xs = ["case0_m=1/unstable_high_j=2_1_new.dat", "case0_m=1/unstable_high_j=3_1_new.dat", "case0_m=1/unstable_high_j=1_1.dat"]
+        fns_Ps = ["case0_m=1/unstable_high_j=2_1_new_P.dat", "case0_m=1/unstable_high_j=3_1_new_P.dat", "case0_m=1/unstable_high_j=1_1_P.dat"]
         title = "Parameter set (i)"
     elseif case == 202 # stable Case 0
-        fns_Xs = ["case0_m=1/stable_j=2_1.dat", "case0_m=1/stable_j=3_1.dat"]
-        fns_Ps = ["case0_m=1/stable_j=2_1_P.dat", "case0_m=1/stable_j=3_1_P.dat"]
+        fns_Xs = ["case0_m=1/stable_j=2_1.dat", "case0_m=1/stable_j=3_1.dat", "case0_m=1/stable_j=1_1.dat"]
+        fns_Ps = ["case0_m=1/stable_j=2_1_P.dat", "case0_m=1/stable_j=3_1_P.dat", "case0_m=1/stable_j=1_1_P.dat"]
         title = "Parameter set (ii)"
     elseif case == 203 # unstable low Case 0
-        fns_Xs = ["case0_m=1/unstable_low_j=2_1.dat", "case0_m=1/unstable_low_j=3_1.dat"]
-        fns_Ps = ["case0_m=1/unstable_low_j=2_1_P.dat", "case0_m=1/unstable_low_j=3_1_P.dat"]
+        fns_Xs = ["case0_m=1/unstable_low_j=2_1.dat", "case0_m=1/unstable_low_j=3_1.dat", "case0_m=1/unstable_low_j=1_1.dat"]
+        fns_Ps = ["case0_m=1/unstable_low_j=2_1_P.dat", "case0_m=1/unstable_low_j=3_1_P.dat", "case0_m=1/unstable_low_j=1_1_P.dat"]
         title = "Parameter set (iii)"
     elseif case == 204 # stable Case 1.1
         fns_Xs = ["case11_m=1/stable_m=1_eps_1_new.dat",   "case11_m=1/stable_m=1_eps_c0_j2_1.dat",   "case11_m=1/stable_m=1_eps_c0_j3_1.dat"]
@@ -116,6 +116,8 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
     l_min_beta = Dict{Int64, Vector{Float64}}()
     l_max_beta = Dict{Int64, Vector{Float64}}()
 
+    l_stab = Dict{Int64, Vector{Float64}}()
+
     l_eps_c = zeros(n_branches)
 
     local matrices, xy, t, P
@@ -123,6 +125,15 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
     for b in 1:n_branches
         l_Xs[b] = Serialization.deserialize(fns_Xs[b])
         l_Ps[b] = Serialization.deserialize(fns_Ps[b])
+
+        # stability
+        fn_stab = replace(fns_Xs[b], (".dat" => "_flowed_errors.dat"))
+        if isfile(fn_stab)
+            stab = Serialization.deserialize(fn_stab)
+            l_stab[b] = abs.(stab[:,3] - stab[:,4])
+        else
+            l_stab[b] = ones(size(l_Ps[b], 1))
+        end
 
         if b == 1
             matrices = Bend.assemble_fd_matrices(l_Ps[1][1])
@@ -197,10 +208,14 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
     ax2.legend()
 
     ax3 = PyPlot.subplot(121)
+
+
     ax3.axvline(l_epsilons[1][1], ls="dotted", color="black", lw=0.5)
     ax3.axhline(1.0, label="circle", color="black")
     ax3.set_ylabel("Min/max rho")
     for b in 1:n_branches
+        ax3.scatter(l_epsilons[b], l_min_rho[b], s=100*(l_stab[b] .< 1e-7), color=color[b])
+        ax3.scatter(l_epsilons[b], l_max_rho[b], s=100*(l_stab[b] .< 1e-7), color=color[b])
         ax3.axvline(l_eps_c[b], color="black", lw=0.5)
         ax3.plot(l_epsilons[b], l_min_rho[b], label=string("branch ", b), ".-", color=color[b])
         ax3.plot(l_epsilons[b], l_max_rho[b], ".-", color=color[b])
@@ -260,8 +275,9 @@ function plotall(case::Int; only_branch=0, dot_size_factor::Float64=3.0)
                 end
             end
             if init
+                ax4.scatter(xy[:,1], xy[:,2], s=dot_size_factor*c.ρ.^4, color=color[b])
                 ax4.plot(xy[:,1], xy[:,2], lw=0.1, color=color[b])
-                ax4.scatter(xy[:,1], xy[:,2], s=dot_size_factor*c.ρ, color=color[b])
+                # ax4.plot(xy[:,1], xy[:,2], lw=1, color="white")
                 ax4.set_aspect("equal")
                 ax4.set_xlim(-1.5, 1.5)
                 ax4.set_ylim(-1.5, 1.5)
@@ -386,7 +402,7 @@ end
 # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
 # PyPlot.savefig("4.pdf")
 
-# plotall(5)
+# plotall(5, only_branch=1)
 # mng = PyPlot.get_current_fig_manager()
 # mng.window.showMaximized()
 # sleep(1)
@@ -431,27 +447,26 @@ end
  # sleep(1)
  # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
 
- plotall(204, dot_size_factor=3.0, only_branch=1)
- mng = PyPlot.get_current_fig_manager()
- mng.window.showMaximized()
- sleep(1)
- PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
- #
- # plotall(201, dot_size_factor=10.0)
+ # plotall(204, dot_size_factor=3.0)
  # mng = PyPlot.get_current_fig_manager()
  # mng.window.showMaximized()
  # sleep(1)
  # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
- # plotall(202, dot_size_factor=10.0)
+ #
+ # plotall(201, dot_size_factor=3.0, only_branch=3)
  # mng = PyPlot.get_current_fig_manager()
  # mng.window.showMaximized()
  # sleep(1)
  # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
- # plotall(203, dot_size_factor=10.0)
+ # plotall(202, dot_size_factor=3.0, only_branch=3)
+ # mng = PyPlot.get_current_fig_manager()
+ # mng.window.showMaximized()
+ # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
+ # plotall(203, dot_size_factor=3.0, only_branch=3)
  # mng = PyPlot.get_current_fig_manager()
  # mng.window.showMaximized()
  # sleep(1)
- #
+ # #
  # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
  # plotall(204, dot_size_factor=10.0)
  # mng = PyPlot.get_current_fig_manager()
@@ -459,10 +474,10 @@ end
  # sleep(1)
  # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
 
- # plotall(205, dot_size_factor=10.0)
- # mng = PyPlot.get_current_fig_manager()
- # mng.window.showMaximized()
- # sleep(1)
- # PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
+ plotall(205, dot_size_factor=40.0)
+ mng = PyPlot.get_current_fig_manager()
+ mng.window.showMaximized()
+ sleep(1)
+ PyPlot.tight_layout(rect=[0, 0.03, 1, 0.95])
 
 PyPlot.show()
