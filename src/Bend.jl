@@ -1,5 +1,10 @@
 module Bend
 
+import GLMakie
+
+export Params, Stiffness, IntermediateParams, SolverParams
+export compute_intermediate, build_flower, assemble_fd_matrices
+
 import LinearAlgebra
 const LA = LinearAlgebra
 
@@ -11,62 +16,38 @@ import EvenParam
 
 const SubA = SubArray{Float64,1,Array{Float64,1}}
 
-mutable struct Params
+
+struct Params
     # Discretization parameters
     N::Int64
-    Δs::Float64
+    L::Float64
 
     # Model parameters
     M::Float64
     epsilon::Float64
     ρ_max::Float64
-
-    # Beta parameters
-    beta_0::Float64
-    beta_rho0::Float64
-    beta_a1::Float64
-    beta_a2::Float64
-    beta_a4::Float64
+    c0::Float64
 
     # mode number
     mode_j::Int64
 
     # rho bound parameters
     potential_range::Float64
-
-    # solver parameters
-    center_ρ::Bool
 end
 
-mutable struct Params_v2
-    # Discretization parameters
-    N::Int64
+struct Stiffness
+    beta::Function
+    beta_prime::Function
+    beta_second::Function
+end
+
+struct IntermediateParams
     Δs::Float64
-
-    # Model parameters
-    M::Float64
-    epsilon::Float64
-    ρ_max::Float64
-
-    # Beta parameters
-    beta_0::Float64
-    beta_rho0::Float64
-    beta_a1::Float64
-    beta_a2::Float64
-    beta_a3::Float64
-    beta_a4::Float64
-
-    # mode number
-    mode_j::Int64
-
-    # rho bound parameters
-    potential_range::Float64
-
-    # solver parameters
-    center_ρ::Bool
+    rho_eq::Float64
+    beta_eq::Float64
+    beta_eq_prime::Float64
+    beta_eq_second::Float64
 end
-
-const ParamsUnion = Union{Params,Params_v2}
 
 mutable struct SolverParams
     atol::Float64
@@ -132,24 +113,20 @@ struct FDMatrices
     D2::SA.SparseMatrixCSC{Float64}
 end
 
-function copy(P::Params)
-    return Params(
-    P.N, P.Δs, P.M,
-    P.epsilon, P.ρ_max, P.beta_0,
-    P.beta_rho0, P.beta_a1, P.beta_a2,
-    P.beta_a4,
-    P.mode_j, P.potential_range,
-    P.center_ρ)
+function copy_struct(s)
+    T = typeof(s)
+    fields = fieldnames(T)
+    return T(map(x -> getfield(s, x), fields)...)
 end
 
-function copy(P::Params_v2)
-    return Params_v2(
-    P.N, P.Δs, P.M,
-    P.epsilon, P.ρ_max, P.beta_0,
-    P.beta_rho0, P.beta_a1, P.beta_a2,
-    P.beta_a3, P.beta_a4,
-    P.mode_j, P.potential_range,
-    P.center_ρ)
+function compute_intermediate(P::Params, S::Stiffness)
+    Δs = P.L / P.N
+    rho_eq = P.M / P.L
+
+    return IntermediateParams(
+        Δs, rho_eq,
+        S.beta(rho_eq), S.beta_prime(rho_eq), S.beta_second(rho_eq)
+    )
 end
 
 function prompt_yes_no(s::String, default_yes::Bool=false)
@@ -169,105 +146,26 @@ function prompt_yes_no(s::String, default_yes::Bool=false)
     end
 end
 
-function X2candidate(P::ParamsUnion, X; copy::Bool=false)
-    if P.center_ρ
-        if copy
-            return Candidate(X[1:P.N],
-                             X[P.N+1:2*P.N-1],
-                             X[2*P.N],
-                             X[2*P.N+1],
-                             X[2*P.N+2],
-                             X[2*P.N+3])
-        else
-            return Candidate(view(X, 1:P.N),
-                             view(X, P.N+1:2*P.N-1),
-                             X[2*P.N],
-                             X[2*P.N+1],
-                             X[2*P.N+2],
-                             X[2*P.N+3])
-        end
+function X2candidate(P::Params, X; copy::Bool=false)
+    if copy
+        return Candidate(X[1:P.N],
+                         X[P.N+1:2*P.N-1],
+                         X[2*P.N],
+                         X[2*P.N+1],
+                         X[2*P.N+2],
+                         0)
     else
-        if copy
-            return Candidate(X[1:P.N],
-                             X[P.N+1:2*P.N-1],
-                             X[2*P.N],
-                             X[2*P.N+1],
-                             X[2*P.N+2],
-                             0)
-        else
-            return Candidate(view(X, 1:P.N),
-                             view(X, P.N+1:2*P.N-1),
-                             X[2*P.N],
-                             X[2*P.N+1],
-                             X[2*P.N+2],
-                             0)
-        end
+        return Candidate(view(X, 1:P.N),
+                         view(X, P.N+1:2*P.N-1),
+                         X[2*P.N],
+                         X[2*P.N+1],
+                         X[2*P.N+2],
+                         0)
     end
 end
 
-function candidate2X(P, c::Candidate)
-    if P.center_ρ
-        return [c.ρ; c.θ; c.λx; c.λy; c.λM; c.λcm]
-    else
-        return [c.ρ; c.θ; c.λx; c.λy; c.λM]
-    end
-end
-
-function ParamsToParams_v2(P1::Params)
-    return Params_v2(
-                   P1.N,
-                   P1.Δs,
-                   P1.M,
-                   P1.epsilon,
-                   P1.ρ_max,
-                   P1.beta_0,
-                   P1.beta_rho0,
-                   P1.beta_a1,
-                   P1.beta_a2,
-                   0.0,
-                   P1.beta_a4,
-                   P1.mode_j,
-                   P1.potential_range,
-                   P1.center_ρ)
-end
-
-function compute_beta(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(1 .+
-                         P.beta_a1*(rho.-P.beta_rho0) +
-                     0.5*P.beta_a2*(rho.-P.beta_rho0).^2 +
-                     0.041666666666666664*P.beta_a4*(rho.-P.beta_rho0).^4)
-end
-
-function compute_beta_prime(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_a1*ones(size(rho)) +
-                     P.beta_a2*(rho.-P.beta_rho0) +
-                     0.16666666666666666*P.beta_a4*(rho.-P.beta_rho0).^3)
-end
-
-function compute_beta_second(P::Params, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_a2*ones(size(rho)) +
-                     0.5*P.beta_a4*(rho.-P.beta_rho0).^2)
-end
-
-function compute_beta(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(1 .+
-                         P.beta_a1*(rho.-P.beta_rho0) +
-                     0.5*P.beta_a2*(rho.-P.beta_rho0).^2 +
-                     0.16666666666666666*P.beta_a3*(rho.-P.beta_rho0).^3 +
-                     0.041666666666666664*P.beta_a4*(rho.-P.beta_rho0).^4)
-end
-
-function compute_beta_prime(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_a1*ones(size(rho)) +
-                     P.beta_a2*(rho.-P.beta_rho0) +
-                     0.5*P.beta_a3*(rho.-P.beta_rho0).^2 +
-                     0.16666666666666666*P.beta_a4*(rho.-P.beta_rho0).^3)
-end
-
-function compute_beta_second(P::Params_v2, rho::Union{Vector{Float64},SubArray{Float64,1,Array{Float64,1}}})
-    return P.beta_0*(P.beta_a2*ones(size(rho)) +
-                     P.beta_a3*(rho.-P.beta_rho0) +
-                     0.5*P.beta_a4*(rho.-P.beta_rho0).^2)
+function candidate2X(P::Params, c::Candidate)
+    return [c.ρ; c.θ; c.λx; c.λy; c.λM]
 end
 
 """
@@ -279,7 +177,8 @@ end
     * λM = X[2*P.N+2]
 """
 
-function adapt_step(P::ParamsUnion, SP::SolverParams, matrices::FDMatrices,
+function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
+                    SP::SolverParams, matrices::FDMatrices,
                     X::Vector{Float64}, δX::Vector{Float64}, current_residual::Vector{Float64},
                     current_step_size::Float64, history::History)
 
@@ -287,6 +186,9 @@ function adapt_step(P::ParamsUnion, SP::SolverParams, matrices::FDMatrices,
 
     Xnew = zeros(size(X))
     t = current_step_size
+
+    check_step_up = false
+    prev_t = -1
 
     while true
         #
@@ -309,29 +211,49 @@ function adapt_step(P::ParamsUnion, SP::SolverParams, matrices::FDMatrices,
         end
 
         # Compute residual and energy
-        residual = compute_residual(P, matrices, Xnew)
-        energy = compute_energy(P, matrices, Xnew)
+        residual = compute_residual(P, IP, S, matrices, Xnew)
+        energy = compute_energy(P, IP, S, matrices, Xnew)
 
-        if (energy - history.energy_prev > history.energy_prev*1e2)
-            t /= SP.step_factor
-            print("Reducing relaxation parameter to: ")
-            println(t)
-            if t < SP.min_step_size
-                error("Relaxation parameter became too small")
+        residual_inc_ratio = LA.norm(residual - history.residual_prev)/LA.norm(residual)
+        # DEBUG
+        # @show residual_inc_ratio
+
+        if ((energy > history.energy_prev * (1 + 1e-1)) ||
+            (residual_inc_ratio > SP.step_down_threshold))
+            if (energy > history.energy_prev * (1 + 1e-1))
+                reason = "energy going up"
+            else
+                reason = "residual ratio above threshold"
+            end
+            if check_step_up
+                t = prev_t
+            else
+                t /= SP.step_factor^2
+                print("Reducing relaxation parameter to: ")
+                print(t)
+                println(", reason: ", reason)
+                if t < SP.min_step_size
+                    error("Relaxation parameter became too small")
+                end
             end
         else
-            if ((0 < (history.energy_prev - energy)) &&
-                (LA.norm(residual) > 1e-3) &&
-                (LA.norm(residual - history.residual_prev)/LA.norm(residual) < SP.step_up_threshold) &&
-                (t < SP.max_step_size))
-                t = min(SP.step_factor*t, SP.max_step_size)
+            if check_step_up
                 print("Increasing relaxation parameter to: ")
                 println(t)
+                @goto finish
+            end
+            if ((history.energy_prev > energy) &&
+                # (LA.norm(residual) > 1e-3) &&
+                (residual_inc_ratio < SP.step_up_threshold) &&
+                (t < SP.max_step_size))
+                prev_t = t
+                t = min(SP.step_factor*t, SP.max_step_size)
+                check_step_up = true
             else
                 # print("residual ratio: ")
-                # println(LA.norm(residual - history.residual_prev)/LA.norm(residual))
+                # println(residual_inc_ratio)
+                @goto finish
             end
-            @goto finish
         end
     end
 
@@ -342,22 +264,23 @@ function adapt_step(P::ParamsUnion, SP::SolverParams, matrices::FDMatrices,
     return Xnew, residual, t
 end
 
-function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=default_SP)
-    matrices = assemble_fd_matrices(P)
+function minimizor(P::Params, IP::IntermediateParams, S::Stiffness,
+        Xinit::Vector{Float64}, SP::SolverParams=default_SP)
+    matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+2 + P.center_ρ))
+    history = History(0, zeros(2*P.N+2))
 
     X = Base.copy(Xinit)
     n = 1
     step_size = SP.step_size
 
-    residual = compute_residual(P, matrices, X)
+    residual = compute_residual(P, IP, S, matrices, X)
 
     energy_i = zeros(SP.max_iter)
     residual_norm_i = zeros(SP.max_iter)
 
-    energy_i[1] = compute_energy(P, matrices, X)
+    energy_i[1] = compute_energy(P, IP, S, matrices, X)
     residual_norm_i[1] = LA.norm(residual)
 
     history.energy_prev = energy_i[1]
@@ -367,13 +290,13 @@ function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=defa
     function ()
         n += 1
         # Assemble
-        A = assemble_inner_system(P, matrices, X)
+        A = assemble_inner_system(P, IP, S, matrices, X)
 
         # Solve
         δX = A\-residual
 
         if SP.adapt
-            Xnew, residual, step_size = adapt_step(P, SP, matrices,
+            Xnew, residual, step_size = adapt_step(P, IP, S, SP, matrices,
                                                    X, δX,
                                                    residual, step_size,
                                                    history)
@@ -381,12 +304,12 @@ function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=defa
         else
             # Update
             X += step_size*δX
-            residual = compute_residual(P, matrices, X)
+            residual = compute_residual(P, IP, S, matrices, X)
         end
 
         # Compute residual norm and energy
         residual_norm = LA.norm(residual)
-        energy = compute_energy(P, matrices, X)
+        energy = compute_energy(P, IP, S, matrices, X)
         energy_i[n] = energy
         residual_norm_i[n] = residual_norm
 
@@ -400,22 +323,23 @@ function minimizor(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=defa
     end
 end
 
-function flow(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=default_SP)
-    matrices = assemble_fd_matrices(P)
+function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
+        Xinit::Vector{Float64}, SP::SolverParams=default_SP)
+    matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+2 + P.center_ρ))
+    history = History(0, zeros(2*P.N+2))
 
     X = Base.copy(Xinit)
     n = 1
     step_size = SP.step_size
 
-    residual = compute_residual(P, matrices, X)
+    residual = compute_residual(P, IP, S, matrices, X)
 
     energy_i = zeros(SP.max_iter)
     residual_norm_i = zeros(SP.max_iter)
 
-    energy_i[1] = compute_energy(P, matrices, X)
+    energy_i[1] = compute_energy(P, IP, S, matrices, X)
     residual_norm_i[1] = LA.norm(residual)
 
     history.energy_prev = energy_i[1]
@@ -428,77 +352,76 @@ function flow(P::ParamsUnion, Xinit::Vector{Float64}, SP::SolverParams=default_S
 
     X_prev = Base.copy(X)
 
+    iter_stationary_res = 0
+
     # Loop until tolerance or max. iterations is met
     function ()
         n += 1
 
-        residual = compute_residual(P, matrices, X)
+        residual = compute_residual(P, IP, S, matrices, X)
         residual_norm = LA.norm(residual)
 
-        # inner loop
-        k = 1
-        while k < 2
-            # Assemble
-            A = assemble_inner_system(P, matrices, X)
+        # Assemble
+        A = assemble_inner_system(P, IP, S, matrices, X)
 
-            # Solve
-            δX = (-id_matrix .+ step_size*A)\(id_matrix*(X .- X_prev) .- step_size*residual)
+        # Solve
+        δX = (-id_matrix .+ step_size*A)\(id_matrix*(X .- X_prev) .- step_size*residual)
 
+        if SP.adapt
+            Xnew, residual, step_size = adapt_step(P, IP, S, SP, matrices,
+                                                   X, δX,
+                                                   residual, step_size,
+                                                   history)
+            X .= Xnew
+        else
             # Update
-            X += δX
-            k += 1
-
-            residual = compute_residual(P, matrices, X)
-            residual_norm = LA.norm(residual)
-            r_residual_norm = LA.norm(id_matrix*(X .- X_prev)) / LA.norm(id_matrix*X)
-
-            if SP.adapt
-                step_size_prev = step_size
-                if r_residual_norm > SP.step_down_threshold && step_size > SP.min_step_size
-                    step_size = max(step_size / SP.step_factor, SP.min_step_size)
-                    println("step down [", r_residual_norm, "], (", step_size_prev, " → ", step_size)
-                elseif r_residual_norm < SP.step_up_threshold && step_size < SP.max_step_size
-                    step_size = min(step_size * SP.step_factor, SP.max_step_size)
-                    println("step up [", r_residual_norm, "], (", step_size_prev, " → ", step_size)
-                end
-            end
-
-            if r_residual_norm < 1e-10
-                break
-            end
+            X += step_size*δX
+            residual = compute_residual(P, IP, S, matrices, X)
         end
-        #println("inner loop end residual norm: ", residual_norm)
-        X_prev .= X
 
         # Compute residual norm and energy
-        energy = compute_energy(P, matrices, X)
+        residual_norm = LA.norm(residual)
+        energy = compute_energy(P, IP, S, matrices, X)
         energy_i[n] = energy
         residual_norm_i[n] = residual_norm
 
-        converged = (LA.norm(residual - history.residual_prev) < SP.rtol) || (LA.norm(residual) < SP.atol)
+        if (LA.norm(residual - history.residual_prev)/LA.norm(residual)) < SP.rtol
+            @show LA.norm(residual - history.residual_prev)
+            iter_stationary_res += 1
+        else
+            iter_stationary_res = 0
+        end
+
+        converged = (iter_stationary_res > 100) || (LA.norm(residual) < SP.atol)
+        if converged
+            @show iter_stationary_res
+        end
 
         history.energy_prev = energy
         history.residual_prev = residual
 
         res = Result(X, n, energy_i, residual_norm_i, converged, converged || (n>=SP.max_iter))
+
         return res
     end
 end
 
-function compute_energy_split(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
+function compute_energy_split(P::Params, IP::IntermediateParams, S::Stiffness,
+                              matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
-    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
+    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/IP.Δs
     θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
-    beta = compute_beta(P, c.ρ)
-    return (0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2), 0.5P.Δs*sum(beta.*θ_dot.^2))
+    beta = S.beta(c.ρ)
+    return (0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2), 0.5P.Δs*sum(beta.*(θ_dot .- P.c0).^2))
 end
 
-function compute_energy(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
+function compute_energy(P::Params, IP::IntermediateParams, S::Stiffness,
+        matrices::FDMatrices, X::Vector{Float64})
     c = X2candidate(P, X)
-    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/P.Δs
+    ρ_dot = (circshift(c.ρ, -1) - c.ρ)/IP.Δs
     θ_dot = compute_centered_fd_θ(P, matrices, c.θ)
-    beta = compute_beta(P, c.ρ)
-    E = 0.5*P.epsilon^2*P.Δs*sum(ρ_dot.^2) + 0.5P.Δs*sum(beta.*θ_dot.^2)
+    beta = S.beta(c.ρ)
+    E = 0.5*P.epsilon^2*IP.Δs*sum(ρ_dot.^2) + 0.5IP.Δs*sum(beta.*(θ_dot .- P.c0).^2)
     if P.potential_range > 0
         (w, _, _) = compute_potential(P, X)
         E += P.Δs*sum(w)
@@ -506,109 +429,97 @@ function compute_energy(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64}
     return E
 end
 
-function assemble_inner_system(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
+function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
+        matrices::FDMatrices, X::Vector{Float64})
     N = P.N
-    Δs = P.Δs
+    Δs = IP.Δs
 
     # Easier access to ρ, θ, λi
     c = X2candidate(P, X)
 
     # Compute beta and derivatves
-    beta_prime_ρ = compute_beta_prime(P, c.ρ)
-    beta_second_ρ = compute_beta_second(P, c.ρ)
-    beta_phalf = compute_beta(P, matrices.M_phalf*c.ρ)[2:end]
-    beta_a1half = compute_beta(P, matrices.M_mhalf*c.ρ)[2:end]
-    beta_prime_phalf = compute_beta_prime(P, matrices.M_phalf*c.ρ)
-    beta_prime_mhalf = compute_beta_prime(P, matrices.M_mhalf*c.ρ)
+    beta_prime_ρ = S.beta_prime(c.ρ)
+    beta_second_ρ = S.beta_second(c.ρ)
+    beta_phalf = S.beta(matrices.M_phalf*c.ρ)[2:end]
+    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)[2:end]
+    beta_prime_phalf = S.beta_prime(matrices.M_phalf*c.ρ)
+    beta_prime_mhalf = S.beta_prime(matrices.M_mhalf*c.ρ)
 
     # Compute upstream and downstream finite differences of θ
     θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
     θ_prime_centered = compute_centered_fd_θ(P, matrices, c.θ)
 
-    A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*θ_prime_centered.^2 .*Matrix{Float64}(LA.I, N, N)
+    A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*(θ_prime_centered .- P.c0).^2 .*Matrix{Float64}(LA.I, N, N)
     if P.potential_range > 0
         (_, _, w_second) = compute_potential(P, X)
         A_E1_ρ .-= w_second .* Matrix{Float64}(LA.I, N, N)
     end
     # FIXME should be minus sign
-    A_E1_θ = -beta_prime_ρ.*θ_prime_centered.*matrices.D1c
+    A_E1_θ = -beta_prime_ρ.*(θ_prime_centered .- P.c0).*matrices.D1c
 
     A_E1_λM = ones(N)
 
-    A_E2_ρ  = (beta_prime_phalf[2:N].*θ_prime_down.*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*θ_prime_up.*matrices.M_mhalf[2:N,:])/Δs
+    A_E2_ρ  = (beta_prime_phalf[2:N].*(θ_prime_down .- P.c0).*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*(θ_prime_up .- P.c0).*matrices.M_mhalf[2:N,:])/Δs
     A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_a1half.*matrices.D1[1:N-1,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
 
     A_E2_λx = -sin.(c.θ)
     A_E2_λy =  cos.(c.θ)
 
-    A_c1θ = -P.Δs*sin.(c.θ)'
-    A_c2θ = P.Δs*cos.(c.θ)'
-    A_c3ρ = P.Δs*ones(N)'
+    A_c1θ = -Δs*sin.(c.θ)'
+    A_c2θ = Δs*cos.(c.θ)'
+    A_c3ρ = Δs*ones(N)'
 
-    if P.center_ρ
-        A_E1_λcm = P.Δs.*(0:(N-1))
-        A_c4ρ  = A_E1_λcm'
-        A = [[ A_E1_ρ      A_E1_θ   zeros(N) zeros(N)      A_E1_λM     A_E1_λcm ];
-             [ A_E2_ρ      A_E2_θ      A_E2_λx    A_E2_λy zeros(N-1) zeros(N-1) ];
-             [ zeros(N)' A_c1θ         0        0          0          0 ];
-             [ zeros(N)' A_c2θ         0        0          0          0 ];
-             [ A_c3ρ     zeros(N-1)'   0        0          0          0 ];
-             [ A_c4ρ     zeros(N-1)'   0        0          0          0 ]]
-    else
-        A = [[ A_E1_ρ    A_E1_θ        zeros(N) zeros(N)   A_E1_λM ];
-             [ A_E2_ρ    A_E2_θ        A_E2_λx  A_E2_λy    zeros(N-1) ];
-             [ zeros(N)' A_c1θ         0        0          0 ];
-             [ zeros(N)' A_c2θ         0        0          0 ];
-             [ A_c3ρ     zeros(N-1)'   0        0          0 ]]
-    end
+    A = [[ A_E1_ρ    A_E1_θ        zeros(N) zeros(N)   A_E1_λM ];
+         [ A_E2_ρ    A_E2_θ        A_E2_λx  A_E2_λy    zeros(N-1) ];
+         [ zeros(N)' A_c1θ         0        0          0 ];
+         [ zeros(N)' A_c2θ         0        0          0 ];
+         [ A_c3ρ     zeros(N-1)'   0        0          0 ]]
 
     return A
 end
 
-function compute_residual(P::ParamsUnion, matrices::FDMatrices, X::Vector{Float64})
+function compute_residual(P::Params, IP::IntermediateParams, S::Stiffness,
+        matrices::FDMatrices, X::Vector{Float64})
     N = P.N
-    Δs = P.Δs
+    Δs = IP.Δs
 
     # Easier access to ρ, θ, λi
     c = X2candidate(P, X)
 
     # Compute beta and derivatves
-    beta_prime_ρ = compute_beta_prime(P, c.ρ)
-    beta_phalf = compute_beta(P, matrices.M_phalf*c.ρ)[2:N]
-    beta_a1half = compute_beta(P, matrices.M_mhalf*c.ρ)[2:N]
+    beta_prime_ρ = S.beta_prime(c.ρ)
+    beta_phalf = S.beta(matrices.M_phalf*c.ρ)[2:N]
+    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)[2:N]
 
     # Compute upstream and downstream finite differences of θ
     θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
 
     # Compute residuals for ρ
-    b_E1 = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ)).^2 + c.λM*ones(N)
+    b_E1 = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ) .- P.c0).^2 + c.λM*ones(N)
     if P.potential_range > 0
         (_, w_prime, _) = compute_potential(P, X)
         b_E1 -= w_prime
     end
+
     # Compute residuals for θ
-    b_E2 = (beta_phalf.*θ_prime_down - beta_a1half.*θ_prime_up)/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
+    b_E2 = (beta_phalf.*(θ_prime_down .- P.c0) - beta_a1half.*(θ_prime_up .- P.c0))/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
 
     # Assemble with constraint residuals
-    if P.center_ρ
-        return [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); (Δs*sum(c.ρ) - P.M); Δs*sum(c.ρ.*(0:(N-1))) - P.M/2π]
-    else
-        return [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
-    end
+    return [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
 end
 
-function compute_fd_θ(P::ParamsUnion, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
+function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
     return (fd, view(fd, 1:P.N-1), view(fd, 2:P.N))
 end
 
-function compute_centered_fd_θ(P::ParamsUnion, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
+function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     return matrices.D1c*θ + matrices.D1c_rhs
 end
 
-function assemble_fd_matrices(P::ParamsUnion)
+function assemble_fd_matrices(P::Params, IP::IntermediateParams)
     N = P.N
-    Δs = P.Δs
+    Δs = IP.Δs
 
     return FDMatrices(
                       # Matrices for i+1/2 and i-1/2 values
@@ -639,7 +550,7 @@ function assemble_fd_matrices(P::ParamsUnion)
                      )
 end
 
-function initial_data_smooth(P::ParamsUnion; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
+function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
     if P.N % sides != 0
         error("N must be dividible by the number of sides")
     end
@@ -666,16 +577,11 @@ function initial_data_smooth(P::ParamsUnion; sides::Int=1, smoothing::Float64, r
         rhos = repeat([zeros(N_straight); P.M/(2π*smoothing)*ones(k-N_straight)], sides)
     end
 
-    if P.center_ρ
-        return [P.M/2π*ones(P.N); thetas[2:end]; 0; 0; 0; 0]
-        # return [rhos; thetas[2:end]; 0; 0; 0; 0]
-    else
-        return [P.M/2π*ones(P.N); thetas[2:end]; 0; 0; 0]
-        # return [rhos; thetas[2:end]; 0; 0; 0]
-    end
+    return [P.M/2π*ones(P.N); thetas[2:end]; 0; 0; 0]
+    # return [rhos; thetas[2:end]; 0; 0; 0]
 end
 
-function initial_data(P::ParamsUnion, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
+function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
     N = P.N
 
     # Construct the ellipsis and reparameterize it
@@ -729,11 +635,7 @@ function initial_data(P::ParamsUnion, a::Real, b::Real; pulse::Int=1, pulse_ampl
         thetas = collect(range(0, 2π, length=P.N+1))[2:end-1]
     end
 
-    if P.center_ρ
-        return [rhos; thetas; 0; 0; 0; 0]
-    else
-        return [rhos; thetas; 0; 0; 0]
-    end
+    return [rhos; thetas; 0; 0; 0]
 end
 
 function g(x::Vector{Float64}, α::Float64)
@@ -748,7 +650,7 @@ function g_pp(x::Vector{Float64}, α::Float64)
     return @. -(2α^2*(x<(1/α))*log(α*x) + 4α*min(α*x-1, 0.0)/x - min(α*x-1, 0.0)^2/x^2)
 end
 
-function compute_potential(P::ParamsUnion, X::Vector{Float64})
+function compute_potential(P::Params, X::Vector{Float64})
     α = 1/P.potential_range
     ρ_max = P.ρ_max
     c = X2candidate(P, X)
@@ -766,7 +668,7 @@ function compute_potential(P::ParamsUnion, X::Vector{Float64})
     return (w, w_prime, w_second)
 end
 
-function candidate_multipliers(P::ParamsUnion, X::Vector{Float64}, matrices::FDMatrices)
+function candidate_multipliers(P::Params, X::Vector{Float64}, matrices::FDMatrices)
     c = X2candidate(P, X)
 
     beta_ρ = compute_beta(P, c.ρ)
@@ -781,6 +683,61 @@ function candidate_multipliers(P::ParamsUnion, X::Vector{Float64}, matrices::FDM
     λy = -P.Δs * sum(beta_θ_prime_sq .* [0; sin.(c.θ)]) / π
 
     return (λM, λx, λy)
+end
+
+function check_differential(P::Params, S::Stiffness, X::Vector{Float64})
+    IP = compute_intermediate(P, S)
+    matrices = assemble_fd_matrices(P, IP)
+
+    dir = rand(2P.N + 2)
+    # dir[1:P.N] .= 0
+    # dir[end-2:end] .= 0
+
+    res = compute_residual(P, IP, S, matrices, X)
+    A = assemble_inner_system(P, IP, S, matrices, X)
+
+    exponents = [ -4, -5, -6, -7]
+    hs = 10.0 .^exponents
+
+    n = length(exponents)
+    errors = zeros(n)
+
+    for (i,h) in enumerate(hs)
+        res_true = compute_residual(P, IP, S, matrices, X + h*dir)
+        res_approx = res + A*(h*dir)
+
+        res_true[end-2:end] .= 0
+        res_approx[end-2:end] .= 0
+
+        # DEBUG
+        # res_true[1:P.N] .= 0
+        # res_approx[1:P.N] .= 0
+
+        res_true[P.N:2P.N-1] .= 0
+        res_approx[P.N:2P.N-1] .= 0
+
+        errors[i] = LA.norm(res_true - res_approx)
+    end
+
+    (a, b) = linreg(log10.(hs), log10.(errors))
+    @show a, b
+
+    fig = GLMakie.Figure()
+    ax1 = GLMakie.Axis(fig[1,1], xlabel="step size", ylabel="error", xscale=GLMakie.log10, yscale=GLMakie.log10)
+
+    GLMakie.scatterlines!(ax1, hs, errors, color="blue")
+    GLMakie.scatterlines!(ax1, hs, 10.0^b*hs.^a, color="red")
+
+    GLMakie.display(fig)
+
+end
+
+function linreg(xi, fi)
+    n = length(xi)
+    a = ((sum(fi.*xi) - sum(xi)*sum(fi)/n)/(sum(xi.^2)))/(1 - sum(xi).^2/sum(xi.^2)/n)
+    b = sum(fi .- a*xi)/n
+
+    return (a, b)
 end
 
 end # module

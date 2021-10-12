@@ -3,22 +3,22 @@ module Plotting
 import PyPlot
 import Bend
 
-function init(P::Bend.Params)
+function init(P::Bend.Params, IP::Bend.IntermediateParams)
     global matrices
-    matrices = Bend.assemble_fd_matrices(P)
+    matrices = Bend.assemble_fd_matrices(P, IP)
     return PyPlot.figure(dpi=50)
 end
 
-function plot(P::Bend.Params, X::Vector{Float64}; label::String="")
-    f = init(P)
-    plot(f, P, X; label=label)
+function plot(P::Bend.Params, IP::Bend.IntermediateParams, X::Vector{Float64}; label::String="")
+    f = init(P, IP)
+    plot(f, P, IP, X; label=label)
 end
 
-function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
+function plot(figure, P::Bend.Params, IP::Bend.IntermediateParams, S::Bend.Stiffness, X::Vector{Float64}; label::String="")
     global matrices
 
     N = P.N
-    Δs = P.Δs
+    Δs = IP.Δs
 
     t = collect(range(0, 2π, length=N+1))[1:N]
 
@@ -39,11 +39,13 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax1.lines[1].set_data(xy[:,1], xy[:,2])
         ax1.collections[1].set_offsets(xy)
         ax1.collections[1].set_sizes(3*c.ρ)
+        ax1.collections[2].set_offsets(xy)
+        ax1.collections[2].set_sizes(-3*c.ρ)
         ax2.lines[1].set_data(t, c.ρ)
         θ_dot = Bend.compute_centered_fd_θ(P, matrices, c.θ)
         ax3.lines[1].set_data(t, θ_dot)
         ax3.lines[2].set_data(t[2:end], c.θ - t[2:end])
-        ax4.lines[1].set_data(t, Bend.compute_beta(P, c.ρ))
+        ax4.lines[1].set_data(t, S.beta(c.ρ))
 
         ax2.relim()
         ax2.autoscale_view(true,true,true)
@@ -64,6 +66,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
 
         ax1.plot(xy[:,1], xy[:,2], lw=0.1, label=label)
         ax1.scatter(xy[:,1], xy[:,2], s=3*c.ρ)
+        ax1.scatter(xy[:,1], xy[:,2], s=-3*c.ρ)
         ax1.set_aspect("equal")
         # circ_col = PyPlot.matplotlib.collections.PatchCollection(mass_circles)
         # ax1.add_collection(circ_col)
@@ -83,7 +86,7 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
         ax3.axhline(0, color="black", lw=0.5)
         # ax3.set_ylim(0, 2π)
 
-        ax4.plot(t, Bend.compute_beta(P, c.ρ), label=label)
+        ax4.plot(t, S.beta(c.ρ), label=label)
         ax4.axhline(0, color="black", lw=0.5)
         ax4.set_title("β(ρ)")
 
@@ -95,12 +98,12 @@ function plot(figure, P::Bend.Params, X::Vector{Float64}; label::String="")
     end
 end
 
-function plot_result(P::Bend.Params, res::Bend.Result; label::String="")
+function plot_result(P::Bend.Params, IP::Bend.IntermediateParams, res::Bend.Result; label::String="")
     N = P.N
-    Δs = P.Δs
+    Δs = IP.Δs
     X = res.sol
 
-    plot(P, X, label=label)
+    plot(P, IP, X, label=label)
 
     PyPlot.figure(dpi=50)
     PyPlot.subplot(211)
