@@ -450,7 +450,7 @@ function assemble_fd_matrices(P::Params, IP::IntermediateParams)
     N = P.N
     Δs = IP.Δs
 
-    return FDMatrices(
+    M = FDMatrices(
                       # Matrices for i+1/2 and i-1/2 values
                       spdiagm_const([0.5, 0.5], [0, 1], N),
                       spdiagm_const([0.5, 0.5], [-1, 0], N),
@@ -477,6 +477,14 @@ function assemble_fd_matrices(P::Params, IP::IntermediateParams)
                       # Matrix for 2nd order finite difference
                       spdiagm_const([1.0, -2.0, 1.0], [-1, 0, 1], N)/Δs^2
                      )
+
+    # FIXME
+    if N < 15
+        display(M.D1c)
+        display(M.D1)
+    end
+
+    return M
 end
 
 function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, reverse_phase::Bool=false, only_rho::Bool=false)
