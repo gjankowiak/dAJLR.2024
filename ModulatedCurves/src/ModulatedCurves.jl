@@ -1,5 +1,7 @@
 module ModulatedCurves
 
+import Printf: @sprintf
+
 export Params, Stiffness, IntermediateParams, SolverParams
 export compute_intermediate, build_flower, assemble_fd_matrices, init_plot
 
@@ -272,11 +274,7 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
         A = assemble_inner_system(P, IP, S, matrices, X)
 
         # Solve
-        if include_multipliers
-            δX = -A\residual
-        else
-            δX = (id_matrix .+ step_size*A)\(-step_size*residual)
-        end
+        δX = (id_matrix .+ step_size*A)\(-step_size*residual)
 
         if SP.adapt
             Xnew, residual, step_size = adapt_step(P, IP, S, SP, matrices,
@@ -292,6 +290,21 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
 
         # FIXME
         # @show δX[P.N+1:2P.N-1]
+        c = X2candidate(P, X)
+        dθ = compute_centered_fd_θ(P, matrices, c.θ)
+
+        δc = X2candidate(P, δX)
+        δθ = δc.θ
+
+        dδθ = compute_fd_θ(P, matrices, δθ)[2]
+        # dδθ = compute_centered_fd_θ(P, matrices, δc.θ)
+        # println(@sprintf "ratios origin: %.2f %.2f %.2f"  (dθ[end] - dθ[end-1])/(dθ[2] - dθ[1]) (dθ[1] - dθ[end])/(dθ[2] - dθ[1]) (dθ[end] - dθ[end-1])/(dθ[1] - dθ[end]))
+        # println(@sprintf "ratio 1 2: %.2f" (dθ[3] - dθ[2])/(dθ[2] - dθ[1]))
+
+        println(@sprintf "dθ = ... %.3f, %.3f, %.3f, %.3f ..." dθ[end] dθ[1] dθ[2] dθ[3])
+        println(@sprintf "diff dθ = ... %.3f, %.3f, %.3f, %.3f ..." dθ[end]-dθ[end-1] dθ[1]-dθ[end] dθ[2]-dθ[1] dθ[3]-dθ[2])
+        # println(@sprintf "dδθ = ... %.3f, %.3f, %.3f, %.3f ..." dδθ[end] dδθ[1] dδθ[2] dδθ[3])
+        # println(@sprintf "δλM, δλx, δλy = %.3f, %.3f, %.3f" δc.λM δc.λx δc.λy)
         # readline()
 
         # Compute residual norm and energy
@@ -361,7 +374,7 @@ function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
     beta_prime_mhalf = S.beta_prime(matrices.M_mhalf*c.ρ)
 
     # Compute upstream and downstream finite differences of θ
-    θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
+    _, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
     θ_prime_centered = compute_centered_fd_θ(P, matrices, c.θ)
 
     A_E1_ρ = P.epsilon^2 * matrices.D2 - 0.5*beta_second_ρ.*(θ_prime_centered .- P.c0).^2 .*Matrix{Float64}(LA.I, N, N)
@@ -407,7 +420,7 @@ function compute_residual(P::Params, IP::IntermediateParams, S::Stiffness,
     beta_a1half = S.beta(matrices.M_mhalf*c.ρ)[2:N]
 
     # Compute upstream and downstream finite differences of θ
-    θ_prime_down_full, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
+    _, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
 
     # Compute residuals for ρ
     b_E1 = P.epsilon^2 * (matrices.D2 * c.ρ) - 0.5*beta_prime_ρ.*(compute_centered_fd_θ(P, matrices, c.θ) .- P.c0).^2 + c.λM*ones(N)
@@ -496,10 +509,10 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     end
 
 
-    # k = 6
-    # thetas = circshift(thetas, -k)
-    # thetas[end-(k-1):end] .+= 2π
-    #thetas = circshift(thetas, -P.N ÷ 2sides)
+    # FIXME
+    k = 6
+    thetas = circshift(thetas, -k)
+    thetas[end-(k-1):end] .+= 2π
 
     return [P.M/P.L*ones(P.N); thetas[2:end]; 0; 0; 0]
     # return [rhos; thetas[2:end]; 0; 0; 0]
