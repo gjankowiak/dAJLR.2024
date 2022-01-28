@@ -88,6 +88,23 @@ function do_flow(P::Params, S::Stiffness,
     end
 end
 
+# constant
+macro CST()
+    return esc(quote
+        function beta(x)
+            return zero(x) .+ 1.0
+        end
+
+    function beta_prime(x)
+            return zero(x)
+        end
+
+    function beta_second(x)
+            return zero(x)
+        end
+    end)
+end
+
 # symmetrical double well
 macro SDW()
 
@@ -130,8 +147,11 @@ function main()
         #3 * 4 * 5 * 12, 2π, 0, 1e-1, 1000, 0.0, 1, -1
     )
 
+    # constant
+    @CST
+
     # symmetrical double well
-    @SDW
+    # @SDW
 
     # asymmetrical double well
     # @ADW
