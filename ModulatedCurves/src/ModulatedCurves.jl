@@ -1,6 +1,6 @@
 module ModulatedCurves
 
-import Printf: @sprintf
+import Printf: @sprintf, @printf
 
 export Params, Stiffness, IntermediateParams, SolverParams
 export compute_intermediate, build_flower, assemble_fd_matrices, init_plot
@@ -97,6 +97,8 @@ function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
     check_step_up = false
     prev_t = -1
 
+    residual_inc_ratio = Inf
+
     while true
         #
         # Update
@@ -122,8 +124,6 @@ function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
         energy = compute_energy(P, IP, S, matrices, Xnew)
 
         residual_inc_ratio = LA.norm(residual - history.residual_prev)/LA.norm(residual)
-        # DEBUG
-        # @show residual_inc_ratio
 
         if ((energy > history.energy_prev * (1 + 2e-1)) ||
             (residual_inc_ratio > SP.step_down_threshold))
@@ -157,8 +157,6 @@ function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
                 t = min(SP.step_factor*t, SP.max_step_size)
                 check_step_up = true
             else
-                # print("residual ratio: ")
-                # println(residual_inc_ratio)
                 @goto finish
             end
         end
@@ -167,6 +165,8 @@ function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
     @label finish
     history.energy_prev = energy
     history.residual_prev = current_residual
+
+    @printf "Residual inc ratio: %.5f, δt: %.5f" residual_inc_ratio t
 
     return Xnew, residual, t
 end
@@ -288,24 +288,6 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
             residual = compute_residual(P, IP, S, matrices, X)
         end
 
-        # FIXME
-        # @show δX[P.N+1:2P.N-1]
-        c = X2candidate(P, X)
-        dθ = compute_centered_fd_θ(P, matrices, c.θ)
-
-        δc = X2candidate(P, δX)
-        δθ = δc.θ
-
-        dδθ = compute_fd_θ(P, matrices, δθ)[2]
-        # dδθ = compute_centered_fd_θ(P, matrices, δc.θ)
-        # println(@sprintf "ratios origin: %.2f %.2f %.2f"  (dθ[end] - dθ[end-1])/(dθ[2] - dθ[1]) (dθ[1] - dθ[end])/(dθ[2] - dθ[1]) (dθ[end] - dθ[end-1])/(dθ[1] - dθ[end]))
-        # println(@sprintf "ratio 1 2: %.2f" (dθ[3] - dθ[2])/(dθ[2] - dθ[1]))
-
-        println(@sprintf "dθ = ... %.3f, %.3f, %.3f, %.3f ..." dθ[end] dθ[1] dθ[2] dθ[3])
-        println(@sprintf "diff dθ = ... %.3f, %.3f, %.3f, %.3f ..." dθ[end]-dθ[end-1] dθ[1]-dθ[end] dθ[2]-dθ[1] dθ[3]-dθ[2])
-        # println(@sprintf "dδθ = ... %.3f, %.3f, %.3f, %.3f ..." dδθ[end] dδθ[1] dδθ[2] dδθ[3])
-        # println(@sprintf "δλM, δλx, δλy = %.3f, %.3f, %.3f" δc.λM δc.λx δc.λy)
-        # readline()
 
         # Compute residual norm and energy
         residual_norm = LA.norm(residual)
@@ -388,7 +370,7 @@ function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
     A_E1_λM = ones(N)
 
     A_E2_ρ  = (beta_prime_phalf[2:N].*(θ_prime_down .- P.c0).*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*(θ_prime_up .- P.c0).*matrices.M_mhalf[2:N,:])/Δs
-    A_E2_θ  = (beta_phalf.*matrices.D1[2:N,:] - beta_a1half.*matrices.D1[1:N-1,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
+    A_E2_θ  = (beta_phalf.*matrices.D1[3:N+1,:] - beta_a1half.*matrices.D1[2:N,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
 
     A_E2_λx = -sin.(c.θ)
     A_E2_λy =  cos.(c.θ)
@@ -439,7 +421,7 @@ end
 
 function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
-    return (fd, view(fd, 1:P.N-1), view(fd, 2:P.N))
+    return (fd, view(fd, 2:P.N), view(fd, 3:P.N+1))
 end
 
 function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
@@ -451,38 +433,34 @@ function assemble_fd_matrices(P::Params, IP::IntermediateParams)
     Δs = IP.Δs
 
     M = FDMatrices(
-                      # Matrices for i+1/2 and i-1/2 values
-                      spdiagm_const([0.5, 0.5], [0, 1], N),
-                      spdiagm_const([0.5, 0.5], [-1, 0], N),
+                   # Matrices for i+1/2 and i-1/2 values
+                   spdiagm_const([0.5, 0.5], [0, 1], N),
+                   spdiagm_const([0.5, 0.5], [-1, 0], N),
 
-                      # Matrix for upstream and downstream 1st order finite diff
-                      # Taking into account 0 and 2π boundary conditions
-                      # Size (N x N-1)
-                      # The finite differences can be computed using the
-                      # compute_fd_θ function
-                      (SA.spdiagm(-1 => -ones(N-1), 0 => ones(N-1))[1:N,1:N-1])/Δs,
+                   # Matrix for upstream and downstream 1st order finite diff
+                   # Taking into account 0 and 2π boundary conditions
+                   # Size (N+1 x N-1)
+                   # The finite differences can be computed using the
+                   # compute_fd_θ function
+                   (SA.spdiagm(-2  => -ones(N-1),
+                               -1  =>  ones(N),
+                               N-2 => -ones(2))[1:N+1,1:N-1])/Δs,
 
-                      # Affine term for up/downstream finite differences
-                      [zeros(N-1); 2π/Δs],
+                   # Affine term for up/downstream finite differences
+                   [2π/Δs; zeros(N-1); 2π/Δs],
 
-                      # Matrix for centered finite differences
-                      (SA.spdiagm(-2  => -ones(N-2),
-                                  -1  => zeros(N-1),
-                                  0   => ones(N-1),
-                                  N-2 => [-1])[1:N,1:N-1])*0.5/Δs,
+                   # Matrix for centered finite differences
+                   (SA.spdiagm(-2  => -ones(N-2),
+                               # -1  => zeros(N-2),
+                               0   => ones(N),
+                               N-2 => -ones(2))[1:N,1:N-1])*0.5/Δs,
 
-                      # Affine term for centered finite differences
-                      [π/Δs; zeros(N-2); π/Δs],
+                   # Affine term for centered finite differences
+                   [π/Δs; zeros(N-2); π/Δs],
 
-                      # Matrix for 2nd order finite difference
-                      spdiagm_const([1.0, -2.0, 1.0], [-1, 0, 1], N)/Δs^2
-                     )
-
-    # FIXME
-    if N < 15
-        display(M.D1c)
-        display(M.D1)
-    end
+                   # Matrix for 2nd order finite difference
+                   spdiagm_const([1.0, -2.0, 1.0], [-1, 0, 1], N)/Δs^2
+                  )
 
     return M
 end
