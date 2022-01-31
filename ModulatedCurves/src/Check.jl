@@ -4,7 +4,7 @@ function check_differential(P::Params, S::Stiffness, X::Vector{Float64})
 
     @show matrices.D1
 
-    dir = rand(2P.N + 2)
+    dir = rand(2P.N + 3)
 
     res = compute_residual(P, IP, S, matrices, X)
     A = assemble_inner_system(P, IP, S, matrices, X)

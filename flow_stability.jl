@@ -36,17 +36,13 @@ function do_flow(P::Params, S::Stiffness,
     # circ = [IP.rho_eq*ones(P.N); t[2:end]; 0; 0; 0]
 
     circ = ModulatedCurves.initial_data_smooth(P; sides=perturbation_pulse, smoothing=theta_smoothing)
-    perturbation = [rho_perturbation_factor * sin.(perturbation_pulse * t).^3; zeros(P.N - 1); 0; 0; 0]
+    perturbation = [rho_perturbation_factor * sin.(perturbation_pulse * t).^3; zeros(P.N); 0; 0; 0]
 
     Xx = circ + perturbation
 
     # ModulatedCurves.check_differential(P, S, Xx)
     # return
     c = ModulatedCurves.X2candidate(P, Xx)
-    @show c.θ
-
-    dθ = ModulatedCurves.compute_centered_fd_θ(P, matrices, c.θ)
-    println(@sprintf "dθ = ... %.3f, %.3f, %.3f, %.3f ..." dθ[end] dθ[1] dθ[2] dθ[3])
 
     if do_plot
         fig, update_plot = init_plot(P, IP, S, Xx)
@@ -63,7 +59,6 @@ function do_flow(P::Params, S::Stiffness,
     iter = 1:(max_iter-1)
 
     function iter_flower(_i)
-        @show _i
         res = flower()
 
         Xx .= res.sol
@@ -186,7 +181,7 @@ function main()
         3 * 4 * 5 * 3, # N
         2π,            # L
         0,             # M
-        1e1,          # ε, sqrt(μ)
+        1e-1,          # ε, sqrt(μ)
         1000,          # ρ_max (unused?)
         0.0,           # c0
         1, -1          # unused

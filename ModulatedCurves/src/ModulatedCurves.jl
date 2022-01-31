@@ -56,17 +56,17 @@ end
 function X2candidate(P::Params, X; copy::Bool=false)
     if copy
         return Candidate(X[1:P.N],
-                         X[P.N+1:2*P.N-1],
-                         X[2*P.N],
+                         X[P.N+1:2*P.N],
                          X[2*P.N+1],
                          X[2*P.N+2],
+                         X[2*P.N+3],
                          0)
     else
         return Candidate(view(X, 1:P.N),
-                         view(X, P.N+1:2*P.N-1),
-                         X[2*P.N],
+                         view(X, P.N+1:2*P.N),
                          X[2*P.N+1],
                          X[2*P.N+2],
+                         X[2*P.N+3],
                          0)
     end
 end
@@ -78,10 +78,10 @@ end
 """
     Structure of X:
     * ρ = X[1:P.N]
-    * θ = X[P.N+1, 2*P.N-1]
-    * λx = X[2*P.N]
-    * λy = X[2*P.N+1]
-    * λM = X[2*P.N+2]
+    * θ = X[P.N+1, 2*P.N]
+    * λx = X[2*P.N+1]
+    * λy = X[2*P.N+2]
+    * λM = X[2*P.N+3]
 """
 
 function adapt_step(P::Params, IP::IntermediateParams, S::Stiffness,
@@ -176,7 +176,7 @@ function minimizor(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+2))
+    history = History(0, zeros(2*P.N+3))
 
     X = Base.copy(Xinit)
     n = 1
@@ -235,7 +235,7 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+2))
+    history = History(0, zeros(2*P.N+3))
 
     X = Base.copy(Xinit)
     n = 1
@@ -252,9 +252,9 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
     history.energy_prev = energy_i[1]
     history.residual_prev .= residual
 
-    id_matrix = Matrix{Float64}(LA.I, 2P.N+2, 2P.N+2)
+    id_matrix = Matrix{Float64}(LA.I, 2P.N+3, 2P.N+3)
     if !include_multipliers
-        for i in (2P.N-1:2P.N+2)
+        for i in (2P.N:2P.N+3)
             id_matrix[i,i] = 0
         end
     end
@@ -287,7 +287,6 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
             X += step_size*δX
             residual = compute_residual(P, IP, S, matrices, X)
         end
-
 
         # Compute residual norm and energy
         residual_norm = LA.norm(residual)
@@ -350,8 +349,8 @@ function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
     # Compute beta and derivatves
     beta_prime_ρ = S.beta_prime(c.ρ)
     beta_second_ρ = S.beta_second(c.ρ)
-    beta_phalf = S.beta(matrices.M_phalf*c.ρ)[2:end]
-    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)[2:end]
+    beta_phalf = S.beta(matrices.M_phalf*c.ρ)
+    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)
     beta_prime_phalf = S.beta_prime(matrices.M_phalf*c.ρ)
     beta_prime_mhalf = S.beta_prime(matrices.M_mhalf*c.ρ)
 
@@ -369,8 +368,8 @@ function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
 
     A_E1_λM = ones(N)
 
-    A_E2_ρ  = (beta_prime_phalf[2:N].*(θ_prime_down .- P.c0).*matrices.M_phalf[2:N,:] - beta_prime_mhalf[2:N].*(θ_prime_up .- P.c0).*matrices.M_mhalf[2:N,:])/Δs
-    A_E2_θ  = (beta_phalf.*matrices.D1[3:N+1,:] - beta_a1half.*matrices.D1[2:N,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N-1, N-1)
+    A_E2_ρ  = (beta_prime_phalf.*(θ_prime_down .- P.c0).*matrices.M_phalf - beta_prime_mhalf.*(θ_prime_up .- P.c0).*matrices.M_mhalf)/Δs
+    A_E2_θ  = (beta_phalf.*matrices.D1[2:N+1,:] - beta_a1half.*matrices.D1[1:N,:])/Δs - (c.λx*cos.(c.θ) + c.λy*sin.(c.θ)).*Matrix{Float64}(LA.I, N, N)
 
     A_E2_λx = -sin.(c.θ)
     A_E2_λy =  cos.(c.θ)
@@ -380,10 +379,10 @@ function assemble_inner_system(P::Params, IP::IntermediateParams, S::Stiffness,
     A_c3ρ = Δs*ones(N)'
 
     A = [[ A_E1_ρ    A_E1_θ        zeros(N) zeros(N)   A_E1_λM ];
-         [ A_E2_ρ    A_E2_θ        A_E2_λx  A_E2_λy    zeros(N-1) ];
+         [ A_E2_ρ    A_E2_θ        A_E2_λx  A_E2_λy    zeros(N) ];
          [ zeros(N)' A_c1θ         0        0          0 ];
          [ zeros(N)' A_c2θ         0        0          0 ];
-         [ A_c3ρ     zeros(N-1)'   0        0          0 ]]
+         [ A_c3ρ     zeros(N)'     0        0          0 ]]
 
     return -A
 end
@@ -398,8 +397,8 @@ function compute_residual(P::Params, IP::IntermediateParams, S::Stiffness,
 
     # Compute beta and derivatves
     beta_prime_ρ = S.beta_prime(c.ρ)
-    beta_phalf = S.beta(matrices.M_phalf*c.ρ)[2:N]
-    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)[2:N]
+    beta_phalf = S.beta(matrices.M_phalf*c.ρ)
+    beta_a1half = S.beta(matrices.M_mhalf*c.ρ)
 
     # Compute upstream and downstream finite differences of θ
     _, θ_prime_up, θ_prime_down = compute_fd_θ(P, matrices, c.θ)
@@ -415,13 +414,13 @@ function compute_residual(P::Params, IP::IntermediateParams, S::Stiffness,
     b_E2 = (beta_phalf.*(θ_prime_down .- P.c0) - beta_a1half.*(θ_prime_up .- P.c0))/Δs - c.λx*sin.(c.θ) + c.λy*cos.(c.θ)
 
     # Assemble with constraint residuals
-    res = [b_E1; b_E2; Δs*(1+sum(cos.(c.θ))); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
+    res = [b_E1; b_E2; Δs*sum(cos.(c.θ)); Δs*sum(sin.(c.θ)); Δs*sum(c.ρ) - P.M]
     return -res
 end
 
 function compute_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
     fd = matrices.D1*θ + matrices.D1_rhs
-    return (fd, view(fd, 2:P.N), view(fd, 3:P.N+1))
+    return (fd, view(fd, 1:P.N), view(fd, 2:P.N+1))
 end
 
 function compute_centered_fd_θ(P::Params, matrices::FDMatrices, θ::Union{Vector{Float64}, SubA})
@@ -442,18 +441,19 @@ function assemble_fd_matrices(P::Params, IP::IntermediateParams)
                    # Size (N+1 x N-1)
                    # The finite differences can be computed using the
                    # compute_fd_θ function
-                   (SA.spdiagm(-2  => -ones(N-1),
-                               -1  =>  ones(N),
-                               N-2 => -ones(2))[1:N+1,1:N-1])/Δs,
+                   (SA.spdiagm( -N  =>  ones(1),
+                               -1   => -ones(N),
+                                0   =>  ones(N+1),
+                                N-1 => -ones(2))[1:N+1,1:N])/Δs,
 
                    # Affine term for up/downstream finite differences
                    [2π/Δs; zeros(N-1); 2π/Δs],
 
                    # Matrix for centered finite differences
-                   (SA.spdiagm(-2  => -ones(N-2),
-                               # -1  => zeros(N-2),
-                               0   => ones(N),
-                               N-2 => -ones(2))[1:N,1:N-1])*0.5/Δs,
+                   (SA.spdiagm(1-N =>  ones(1),
+                               -1  => -ones(N-1),
+                                1  =>  ones(N-1),
+                               N-1 => -ones(1)))*0.5/Δs,
 
                    # Affine term for centered finite differences
                    [π/Δs; zeros(N-2); π/Δs],
@@ -500,11 +500,11 @@ function initial_data_smooth(P::Params; sides::Int=1, smoothing::Float64, revers
     thetas = circshift(thetas, -k)
     thetas[end-(k-1):end] .+= 2π
 
-    return [P.M/P.L*ones(P.N); thetas[2:end]; 0; 0; 0]
-    # return [rhos; thetas[2:end]; 0; 0; 0]
+    return [P.M/P.L*ones(P.N); thetas; 0; 0; 0]
 end
 
 function initial_data(P::Params, a::Real, b::Real; pulse::Int=1, pulse_amplitude::Real=2e-2, poly::Bool=false, reverse_phase::Bool=false, only_rho::Bool=false)
+    throw("not converted to free θ(0)")
     N = P.N
 
     # Construct the ellipsis and reparameterize it
@@ -593,22 +593,6 @@ function compute_potential(P::Params, X::Vector{Float64})
     return (w, w_prime, w_second)
 end
 
-# function candidate_multipliers(P::Params, IP::IntermediateParams, X::Vector{Float64}, matrices::FDMatrices)
-#     c = X2candidate(P, X)
-# 
-#     beta_ρ = compute_beta(P, c.ρ)
-#     beta_prime_ρ = compute_beta_prime(P, c.ρ)
-# 
-#     θ_prime = compute_centered_fd_θ(P, matrices, c.θ)
-# 
-#     beta_θ_prime_sq = beta_ρ .* θ_prime.^2
-# 
-#     λM = IP.Δs * sum(beta_prime_ρ .* θ_prime.^2) / (4π)
-#     λx = -IP.Δs * sum(beta_θ_prime_sq .* [1; cos.(c.θ)]) / π
-#     λy = -IP.Δs * sum(beta_θ_prime_sq .* [0; sin.(c.θ)]) / π
-# 
-#     return (λM, λx, λy)
-# end
 
 function linreg(xi, fi)
     n = length(xi)

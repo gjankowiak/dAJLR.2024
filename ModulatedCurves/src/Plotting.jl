@@ -22,15 +22,14 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     t = collect(range(0, 2π, length=N+1))[1:N]
 
     xy = zeros(N+1, 2)
-    xy[2,:] = [Δs 0]
 
     function compute_c(_X)
         return X2candidate(P, _X; copy=false)
     end
 
     function compute_xy(c_node)
-        for i in 3:N+1
-            xy[i,:] = xy[i-1,:] + Δs*[cos(c_node.θ[i-2]); sin(c_node.θ[i-2])]
+        for i in 2:N+1
+            xy[i,:] = xy[i-1,:] + Δs*[cos(c_node.θ[i-1]); sin(c_node.θ[i-1])]
         end
 
         bc = sum(xy, dims=1)/N
@@ -44,8 +43,16 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     xy_node = M.@lift compute_xy($c_node)
     θ_dot_node = M.@lift compute_centered_fd_θ(P, matrices, $c_node.θ)
 
-    θ_dot_updown_node = M.@lift compute_fd_θ(P, matrices, $c_node.θ)
-    θ_dotdot_node = M.@lift ([($c_node.θ[1] - 2π + $c_node.θ[end])/(Δs^2); ($θ_dot_updown_node[3] - $θ_dot_updown_node[2])/Δs])
+    # θ_dot_updown_node = M.@lift compute_fd_θ(P, matrices, $c_node.θ)
+
+    function compute_θ_dotdot(θ)
+      r = matrices.D2*θ
+      r[1] -= 2π/(IP.Δs^2)
+      r[end] += 2π/(IP.Δs^2)
+      return r
+    end
+
+    θ_dotdot_node = M.@lift compute_θ_dotdot($c_node.θ)
 
     function update(X, title)
         X_node[] = X
