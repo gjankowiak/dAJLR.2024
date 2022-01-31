@@ -176,7 +176,7 @@ function minimizor(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+3))
+    history = History(0, zeros(2*P.N+3), [0.0], [0.0], [0.0])
 
     X = Base.copy(Xinit)
     n = 1
@@ -235,9 +235,10 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+3))
+    history = History(0, zeros(2*P.N+3), [0.0], [0.0], [0.0])
 
     X = Base.copy(Xinit)
+    c = X2candidate(P, X)
     n = 1
     step_size = SP.step_size
 
@@ -251,6 +252,9 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
 
     history.energy_prev = energy_i[1]
     history.residual_prev .= residual
+
+    history.energies[1] = energy_i[1]
+    history.int_θ[1] = sum(c.θ)*IP.Δs
 
     id_matrix = Matrix{Float64}(LA.I, 2P.N+3, 2P.N+3)
     if !include_multipliers
@@ -309,7 +313,11 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
         history.energy_prev = energy
         history.residual_prev = residual
 
-        res = Result(X, n, energy_i, residual_norm_i, converged, converged || (n>=SP.max_iter))
+        push!(history.energies, energy)
+        push!(history.ts, history.ts[end] + step_size)
+        push!(history.int_θ, sum(c.θ)*IP.Δs)
+
+        res = Result(X, n, energy_i, residual_norm_i, history, converged, converged || (n>=SP.max_iter))
 
         return res
     end

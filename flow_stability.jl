@@ -75,7 +75,7 @@ function do_flow(P::Params, S::Stiffness,
             print(", min/max ρ: ")
             @show extrema(view(Xx, 1:P.N))
             if do_plot
-                update_plot(res.sol, @sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle))
+                update_plot(res.sol, (@sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle)), res.history)
             end
         else
             print(".")
@@ -88,7 +88,7 @@ function do_flow(P::Params, S::Stiffness,
             @show res.residual_norm_i[n - 1]
             @show res.residual_norm_i[n]
             if do_plot
-                update_plot(res.sol, @sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle))
+                update_plot(res.sol, (@sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle)), res.history)
             end
             done[1] = true
         end

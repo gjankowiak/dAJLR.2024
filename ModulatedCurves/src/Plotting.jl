@@ -1,8 +1,6 @@
 import GLMakie
 const M = GLMakie
 
-@show M.Observable
-
 function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Float64}; label::String="")
 
     matrices = assemble_fd_matrices(P, IP)
@@ -10,8 +8,8 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     fig = M.Figure(resolution = (1600, 900))
 
     axes = [
-            M.Axis(fig[1, 1], aspect=M.AxisAspect(1)) M.Axis(fig[1, 2], title=M.L"\rho");
-            M.Axis(fig[2, 1], title=M.L"\dot{\theta}, \ddot{\theta}") M.Axis(fig[2, 2], title=M.L"\beta(\rho)")
+            M.Axis(fig[1, 1], aspect=M.AxisAspect(1)) M.Axis(fig[1, 2], title=M.L"\rho") M.Axis(fig[1, 3], title="energy");
+            M.Axis(fig[2, 1], title=M.L"\dot{\theta}, \ddot{\theta}") M.Axis(fig[2, 2], title=M.L"\beta(\rho)") M.Axis(fig[2,3], title=M.L"\int \theta")
     ]
 
     M.limits!(axes[1,1], -1.5, 1.5, -1.5, 1.5)
@@ -43,6 +41,10 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     xy_node = M.@lift compute_xy($c_node)
     θ_dot_node = M.@lift compute_centered_fd_θ(P, matrices, $c_node.θ)
 
+    ts_node = M.Observable([0.0])
+    energies_node = M.Observable([0.0])
+    int_θ_node = M.Observable([0.0])
+
     # θ_dot_updown_node = M.@lift compute_fd_θ(P, matrices, $c_node.θ)
 
     function compute_θ_dotdot(θ)
@@ -54,10 +56,14 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
 
     θ_dotdot_node = M.@lift compute_θ_dotdot($c_node.θ)
 
-    function update(X, title)
+    function update(X, title, history)
         X_node[] = X
         axes[1,1].title = title
         map(M.autolimits!, axes[2:end])
+
+        ts_node[] = history.ts
+        energies_node[] = history.energies
+        int_θ_node[] = history.int_θ
     end
 
     M.lines!(axes[1,1], cos.(t), sin.(t), lw=0.5, color="gray")
@@ -65,10 +71,15 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     M.scatter!(axes[1,1], M.lift(x -> [x[1,1]], xy_node), M.lift(x -> [x[1,2]], xy_node))
     M.lines!(axes[1,2], t, M.lift(x -> x.ρ, c_node))
 
+    M.lines!(axes[1,3], ts_node, energies_node)
+
     M.scatterlines!(axes[2,1], t, θ_dot_node, markersize=3, color=M.RGBAf(0.8, 0.3, 0.1, 0.5))
     M.scatterlines!(axes[2,1], t, θ_dotdot_node, markersize=3, color=M.RGBAf(0.1, 0.3, 0.8, 0.5))
 
     M.lines!(axes[2,2], t, M.lift(x -> S.beta(x.ρ), c_node))
+
+    M.lines!(axes[2,3], ts_node, int_θ_node)
+    axes[2,3].yticks = M.MultiplesTicks(4, pi, "π")
 
     M.display(fig)
 

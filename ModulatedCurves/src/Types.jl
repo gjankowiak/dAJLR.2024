@@ -66,6 +66,9 @@ end
 mutable struct History
     energy_prev::Float64
     residual_prev::Vector{Float64}
+    ts::Vector{Float64}
+    energies::Vector{Float64}
+    int_θ::Vector{Float64}
 end
 
 struct Result
@@ -73,6 +76,7 @@ struct Result
     iter::Int64
     energy_i::Vector{Float64}
     residual_norm_i::Vector{Float64}
+    history::History
     converged::Bool
     finished::Bool
 end
