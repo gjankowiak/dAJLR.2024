@@ -45,7 +45,9 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
     energies_node = M.Observable([0.0])
     int_θ_node = M.Observable([0.0])
 
-    # θ_dot_updown_node = M.@lift compute_fd_θ(P, matrices, $c_node.θ)
+    ρ_equi = P.M / P.L
+    k_equi = P.L / 2π
+    energy_circle = P.L * S.beta(ρ_equi) * (k_equi - P.c0)^2 / 2
 
     function compute_θ_dotdot(θ)
       r = matrices.D2*θ
@@ -56,29 +58,34 @@ function init_plot(P::Params, IP::IntermediateParams, S::Stiffness, X::Vector{Fl
 
     θ_dotdot_node = M.@lift compute_θ_dotdot($c_node.θ)
 
-    function update(X, title, history)
+    function update(X::Vector{Float64}, title::String, result::Result)
         X_node[] = X
         axes[1,1].title = title
-        map(M.autolimits!, axes[2:end])
 
-        ts_node[] = history.ts
-        energies_node[] = history.energies
-        int_θ_node[] = history.int_θ
+        ts_node[] = result.t_i
+        energies_node[] = result.energy_i
+        int_θ_node[] = result.int_θ_i
+
+        map(M.autolimits!, axes[2:end])
     end
 
     M.lines!(axes[1,1], cos.(t), sin.(t), lw=0.5, color="gray")
     M.scatterlines!(axes[1,1], M.lift(x -> x[:,1], xy_node), M.lift(x -> x[:,2], xy_node), markersize=M.lift(x -> 10*abs.([x.ρ; x.ρ[1]]), c_node), markercolor=M.lift(x -> map(v -> v>0 ? "blue" : "red", [x.ρ; x.ρ[1]]), c_node))
     M.scatter!(axes[1,1], M.lift(x -> [x[1,1]], xy_node), M.lift(x -> [x[1,2]], xy_node))
     M.lines!(axes[1,2], t, M.lift(x -> x.ρ, c_node))
+    M.hlines!(axes[1,2], ρ_equi, color="gray")
 
     M.lines!(axes[1,3], ts_node, energies_node)
+    M.hlines!(axes[1,3], energy_circle, color="gray")
 
     M.scatterlines!(axes[2,1], t, θ_dot_node, markersize=3, color=M.RGBAf(0.8, 0.3, 0.1, 0.5))
     M.scatterlines!(axes[2,1], t, θ_dotdot_node, markersize=3, color=M.RGBAf(0.1, 0.3, 0.8, 0.5))
 
     M.lines!(axes[2,2], t, M.lift(x -> S.beta(x.ρ), c_node))
+    M.hlines!(axes[2,2], [0.0, S.beta(ρ_equi)], color="gray")
 
     M.lines!(axes[2,3], ts_node, int_θ_node)
+    M.hlines!(axes[2,3], 0.0, color="gray")
     axes[2,3].yticks = M.MultiplesTicks(4, pi, "π")
 
     M.display(fig)

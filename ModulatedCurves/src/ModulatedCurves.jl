@@ -3,13 +3,15 @@ module ModulatedCurves
 import Printf: @sprintf, @printf
 
 export Params, Stiffness, IntermediateParams, SolverParams
-export compute_intermediate, build_flower, assemble_fd_matrices, init_plot
+export compute_intermediate, build_flower, assemble_fd_matrices, init_plot, do_flow
 
 import LinearAlgebra
 const LA = LinearAlgebra
 
 import SparseArrays
 const SA = SparseArrays
+
+import GLMakie
 
 import JankoUtils: spdiagm_const
 import EvenParam
@@ -176,7 +178,7 @@ function minimizor(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+3), [0.0], [0.0], [0.0])
+    history = History(0, zeros(2*P.N+3))
 
     X = Base.copy(Xinit)
     n = 1
@@ -186,9 +188,6 @@ function minimizor(P::Params, IP::IntermediateParams, S::Stiffness,
 
     energy_i = zeros(SP.max_iter)
     residual_norm_i = zeros(SP.max_iter)
-
-    energy_i[1] = compute_energy(P, IP, S, matrices, X)
-    residual_norm_i[1] = LA.norm(residual)
 
     history.energy_prev = energy_i[1]
     history.residual_prev .= residual
@@ -235,7 +234,7 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
     matrices = assemble_fd_matrices(P, IP)
 
     # Initialization
-    history = History(0, zeros(2*P.N+3), [0.0], [0.0], [0.0])
+    history = History(0, zeros(2*P.N+3))
 
     X = Base.copy(Xinit)
     c = X2candidate(P, X)
@@ -244,17 +243,13 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
 
     residual = compute_residual(P, IP, S, matrices, X)
 
-    energy_i = zeros(SP.max_iter)
-    residual_norm_i = zeros(SP.max_iter)
-
-    energy_i[1] = compute_energy(P, IP, S, matrices, X)
-    residual_norm_i[1] = LA.norm(residual)
+    energy_i = [compute_energy(P, IP, S, matrices, X)]
+    residual_norm_i = [LA.norm(residual)]
+    int_θ_i = [sum(c.θ)*IP.Δs]
+    t_i = [0.0]
 
     history.energy_prev = energy_i[1]
     history.residual_prev .= residual
-
-    history.energies[1] = energy_i[1]
-    history.int_θ[1] = sum(c.θ)*IP.Δs
 
     id_matrix = Matrix{Float64}(LA.I, 2P.N+3, 2P.N+3)
     if !include_multipliers
@@ -295,8 +290,11 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
         # Compute residual norm and energy
         residual_norm = LA.norm(residual)
         energy = compute_energy(P, IP, S, matrices, X)
-        energy_i[n] = energy
-        residual_norm_i[n] = residual_norm
+        push!(energy_i, energy)
+        push!(residual_norm_i, residual_norm)
+
+        push!(t_i, t_i[end] + step_size)
+        push!(int_θ_i, sum(c.θ)*IP.Δs)
 
         if (LA.norm(residual - history.residual_prev)/LA.norm(residual)) < SP.rtol
             @show LA.norm(residual - history.residual_prev)
@@ -313,11 +311,7 @@ function build_flower(P::Params, IP::IntermediateParams, S::Stiffness,
         history.energy_prev = energy
         history.residual_prev = residual
 
-        push!(history.energies, energy)
-        push!(history.ts, history.ts[end] + step_size)
-        push!(history.int_θ, sum(c.θ)*IP.Δs)
-
-        res = Result(X, n, energy_i, residual_norm_i, history, converged, converged || (n>=SP.max_iter))
+        res = Result(X, n, energy_i, residual_norm_i, t_i, int_θ_i, converged, converged || (n>=SP.max_iter))
 
         return res
     end
@@ -608,6 +602,73 @@ function linreg(xi, fi)
     b = sum(fi .- a*xi)/n
 
     return (a, b)
+end
+
+function do_flow(P::Params, S::Stiffness, Xinit::Vector{Float64}, solver_params::SolverParams;
+        do_plot::Bool=false, include_multipliers::Bool=false, record_movie::Bool=false)
+
+    IP = compute_intermediate(P, S)
+
+    ρ_equi = P.M / P.L
+    k_equi = P.L / 2π
+    energy_circle = P.L * S.beta(ρ_equi) * (k_equi - P.c0)^2 / 2
+
+    Xx = copy(Xinit)
+
+    if do_plot
+        fig, update_plot = init_plot(P, IP, S, Xx)
+    end
+
+    flower = build_flower(P, IP, S, Xx, solver_params; include_multipliers=include_multipliers)
+
+    local res
+
+    done = [false]
+
+    iter = 1:(solver_params.max_iter-1)
+
+    function iter_flower(_i)
+        res = flower()
+
+        Xx .= res.sol
+        n = res.iter
+
+        if n % 1 == 0
+            println()
+            print(n)
+
+            print(", energy/rel: ")
+            print(res.energy_i[n], "/", res.energy_i[n] - energy_circle)
+            print(", residual norm: ")
+            print(res.residual_norm_i[n])
+            print(", min/max ρ: ")
+            @show extrema(view(Xx, 1:P.N))
+            if do_plot
+                update_plot(res.sol, (@sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle)), res)
+            end
+        else
+            print(".")
+        end
+
+        if res.finished || res.residual_norm_i[n] > 1e10
+            print("Finished, converged: ")
+            println(res.converged)
+            @show res.residual_norm_i[end]
+            @show extrema(res.int_θ_i)
+            if do_plot
+                update_plot(res.sol, (@sprintf "%d, energy/rel: %.4f/%.4f" n res.energy_i[n]  (res.energy_i[n] - energy_circle)), res)
+            end
+            done[1] = true
+        end
+    end
+
+    if record_movie
+        GLMakie.record(iter_flower, fig, "output.mp4", iter, framerate=10)
+    else
+        while !done[1]
+            iter_flower(1)
+        end
+    end
 end
 
 end # module

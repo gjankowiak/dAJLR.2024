@@ -631,7 +631,7 @@ uuid = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
 version = "1.1.4"
 
 [[deps.ModulatedCurves]]
-deps = ["EvenParam", "GLMakie", "Interpolations", "JankoUtils", "LinearAlgebra", "SparseArrays"]
+deps = ["EvenParam", "GLMakie", "Interpolations", "JankoUtils", "LinearAlgebra", "Printf", "SparseArrays"]
 path = "ModulatedCurves"
 uuid = "fe8c8720-b329-4da7-9136-aa4067905fef"
 version = "0.1.0"
