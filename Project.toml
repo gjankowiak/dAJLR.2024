@@ -1,7 +1,4 @@
 [deps]
 EvenParam = "bcb3e14e-248c-11e9-14d9-6db38a995404"
-GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 JankoUtils = "c162ff04-248c-11e9-37d4-2fd351b76fad"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 ModulatedCurves = "fe8c8720-b329-4da7-9136-aa4067905fef"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
