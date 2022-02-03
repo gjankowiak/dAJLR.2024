@@ -1,0 +1,40 @@
+[options]
+record_movie = false
+do_plot = true
+pause_after_init = false
+plot_each_iter = 10
+
+[model]
+N = 360 # 2*2*2*3*3*5
+L = "2π"
+M = 0.0
+c0 = 0
+mu = 1e-1
+beta_key = "asym_quadratic"
+
+[solver]
+atol                = 1e-9
+rtol                = 1e-13
+max_iter            = 15000
+step_size           = 1e-1
+adapt               = true
+min_step_size       = 1e-4
+max_step_size       = 1e0
+step_down_threshold = 1e-1
+step_up_threshold   = 1e-3
+step_factor         = 1.4
+
+[initial_data]
+type = "star"
+r_key = "default"
+rho_phase = 0.1
+rho_amplitude = 0.1
+
+# type = "polygon"
+# sides = 3
+# smoothing = 0.3 # between 0 and 1
+# reverse_phase = false
+# only_rho = false
+# rho_phase = 0.0
+# rho_amplitude = 0.1
+

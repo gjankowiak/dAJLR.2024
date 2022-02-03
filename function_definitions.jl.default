@@ -1,0 +1,11 @@
+function_defs = Dict(
+    :beta => Dict("constant" => (x) -> zero(x) .+ 1.0, # constant
+              "sym_double_well" => (x) -> 1.01 + (x - 1)^2 * (x + 1)^2, # symmetrical double well
+              "asym_double_well" => (x) -> 1.7 + (x - 1)^2 * (x + 1)^2 + x, # asymmetrical double well
+              "sym_quadratic" => (x) -> 1.0 + x^2, 
+              "asym_quadratic" => (x) -> 1.0 + (x - 1)^2, 
+              # add your definitions here
+              # "your_key" => (x) -> "sin(x)"
+             ),
+    :r => Dict("default" => (φ) -> 1 + 0.1*cos(3φ) )
+)
