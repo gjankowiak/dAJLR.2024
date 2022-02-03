@@ -1,4 +1,4 @@
-# Numerical gradient flow described in dAJLR
+# Numerical gradient flow described in [dAJLR]
 
 ## Installation
 
@@ -18,3 +18,5 @@
     include("flow.jl")
 ```
 - Edit the newly created `config.params.toml` and `function_definitions.jl` run it again!
+
+[dAJLR](https://www.overleaf.com/project/6082890f9f7f0bb5a15842b6)
