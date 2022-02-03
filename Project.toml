@@ -1,4 +1,8 @@
 [deps]
+ConfParser = "88353bc9-fd38-507d-a820-d3b43837d6b9"
 EvenParam = "bcb3e14e-248c-11e9-14d9-6db38a995404"
 JankoUtils = "c162ff04-248c-11e9-37d4-2fd351b76fad"
 ModulatedCurves = "fe8c8720-b329-4da7-9136-aa4067905fef"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
