@@ -13,9 +13,8 @@
     add https://git.oknaj.eu/gjankowiak/ModulatedCurves.jl
 ```
 
-- Edit `flow_stability.jl` and run it from the julia prompt with `include("flow_stability.jl")`
-
-## TODO
-
-- Set options from the command line or script
-- How to deal with updates?
+- Try with the default set of parameters:
+```
+    include("flow.jl")
+```
+- Edit the newly created `config.params.toml` and `function_definitions.jl` run it again!
