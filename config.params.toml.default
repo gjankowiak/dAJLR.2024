@@ -10,7 +10,26 @@ L = "2π"
 M = 0.0
 c0 = 0
 mu = 1e-1
-beta_key = "asym_quadratic"
+
+[model.stiffness]
+key = "exponential"
+
+[model.stiffness.parameters.constant]
+c = 2.0
+
+[model.stiffness.parameters.double_well]
+c = 1.2
+offset = 0.0
+linear_slope = 0.0
+
+[model.stiffness.parameters.quadratic]
+offset = 0.0
+c = 1.0
+
+[model.stiffness.parameters.exponential]
+offset = 0.0
+exponent = -1
+c = 0.0
 
 [solver]
 atol                = 1e-9

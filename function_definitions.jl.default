@@ -1,11 +1,10 @@
 function_defs = Dict(
-    :beta => Dict("constant" => (x) -> zero(x) .+ 1.0, # constant
-              "sym_double_well" => (x) -> 1.01 + (x - 1)^2 * (x + 1)^2, # symmetrical double well
-              "asym_double_well" => (x) -> 1.7 + (x - 1)^2 * (x + 1)^2 + x, # asymmetrical double well
-              "sym_quadratic" => (x) -> 1.0 + x^2, 
-              "asym_quadratic" => (x) -> 1.0 + (x - 1)^2, 
+:beta => Dict("constant" => (x,p) -> p.c,
+              "double_well" => (x,p) -> p.c + (x - p.offset - 1)^2 * (x - p.offset + 1)^2 + p.linear_slope*x,
+              "quadratic" => (x,p) -> p.c + (x - p.offset)^2,
+              "exponential" => (x,p) -> p.c + exp(p.exponent*(x - p.offset))
               # add your definitions here
-              # "your_key" => (x) -> "sin(x)"
+              # "your_key" => (x,p) -> p.c + sin(x*p.omega)
              ),
     :r => Dict("default" => (φ) -> 1 + 0.1*cos(3φ) )
 )
