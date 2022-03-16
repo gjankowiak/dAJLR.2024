@@ -1,5 +1,5 @@
 [options]
-record_movie = false
+record_movie = true
 do_plot = true
 pause_after_init = false
 plot_each_iter = 10
@@ -8,14 +8,14 @@ plot_each_iter = 10
 N = 360 # 2*2*2*3*3*5
 L = "2π"
 M = 0.0
-c0 = 0
+c0 = 2
 mu = 1e-1
 
 [model.stiffness]
 key = "exponential"
 
 [model.stiffness.parameters.constant]
-c = 2.0
+c = 1.0
 
 [model.stiffness.parameters.double_well]
 c = 1.2
@@ -32,9 +32,9 @@ exponent = -1
 c = 0.0
 
 [solver]
-atol                = 1e-9
+atol                = 5e-9
 rtol                = 1e-13
-max_iter            = 15000
+max_iter            = 10_000
 step_size           = 1e-1
 adapt               = true
 min_step_size       = 1e-4
