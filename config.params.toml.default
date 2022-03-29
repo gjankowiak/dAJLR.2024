@@ -2,24 +2,26 @@
 record_movie = true
 do_plot = true
 pause_after_init = false
-plot_each_iter = 10
+plot_each_iter = 1
+pause_after_plot = false
 
 [model]
 N = 360 # 2*2*2*3*3*5
 L = "2π"
 M = 0.0
-c0 = 2
+#c0 = 0
+c0 = 1.0
 mu = 1e-1
 
 [model.stiffness]
-key = "exponential"
+key = "hyperbolic_tangent"
 
 [model.stiffness.parameters.constant]
 c = 1.0
 
 [model.stiffness.parameters.double_well]
 c = 1.2
-offset = 0.0
+offset = 0.1
 linear_slope = 0.0
 
 [model.stiffness.parameters.quadratic]
@@ -31,10 +33,20 @@ offset = 0.0
 exponent = -1
 c = 0.0
 
+[model.stiffness.parameters.gaussian]
+offset = 0.25
+exponent = -1
+c = 0.0
+
+[model.stiffness.parameters.hyperbolic_tangent]
+offset = 0.0
+exponent = 10.0
+c = 1.0
+
 [solver]
 atol                = 5e-9
 rtol                = 1e-13
-max_iter            = 10_000
+max_iter            = 4_500
 step_size           = 1e-1
 adapt               = true
 min_step_size       = 1e-4
@@ -44,16 +56,22 @@ step_up_threshold   = 1e-3
 step_factor         = 1.4
 
 [initial_data]
-type = "star"
+# type = "star"
+type = "polygon"
 r_key = "default"
-rho_phase = 0.1
-rho_amplitude = 0.1
 
-# type = "polygon"
-# sides = 3
-# smoothing = 0.3 # between 0 and 1
-# reverse_phase = false
-# only_rho = false
-# rho_phase = 0.0
-# rho_amplitude = 0.1
+[initial_data.parameters.polygon]
+sides = 3
+smoothing = 0.1 # between 0 and 1
+reverse_phase = false
+only_rho = false
+rho_phase = 0.0
+rho_wave_number = 2
+rho_amplitude = 5.0
+
+[initial_data.parameters.star]
+rho_phase = 0.0
+rho_amplitude = 0.0
+radius_amplitude = 0.2
+radius_wave_number = 5
 
