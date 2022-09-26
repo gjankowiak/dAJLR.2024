@@ -26,13 +26,21 @@ function main(configuration_fn::String=config_fn)
 
     if haskey(options_dict, :do_load)
         h5 = HDF5.h5open(options_dict[:load_snapshot_fn], "r")
-        Xinit .= read(h5["s$(options_dict[:load_snapshot_n])X"])
+        idx = options_dict[:load_snapshot_n]
+        if idx > 0
+            Xinit .= read(h5["s$(options_dict[:load_snapshot_n])X"])
+        else
+            last_idx = read(h5["s_last_idx"])
+            Xinit .= read(h5["s$(s_last_idx)X"])
+        end
         close(h5)
     end
 
     if haskey(options_dict, :output_dir)
         output_dir = options_dict[:output_dir]
         mkpath(output_dir)
+        rm(joinpath(output_dir, "snapshots"); force=true, recursive=true)
+        mkpath(joinpath(output_dir, "snapshots"))
         cp(configuration_fn, joinpath(output_dir, "config.toml"), force=true)
         cp(func_defs_fn, joinpath(output_dir, "functions_defs.toml"), force=true)
     end
