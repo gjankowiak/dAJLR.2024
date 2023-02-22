@@ -18,22 +18,26 @@ if !isfile(config_fn)
     cp(default_config_fn, config_fn)
 end
 
-function main(configuration_fn::String=config_fn)
+function flow(configuration_fn::String=config_fn)
     P, S, Xinit, solver_params, options = ModulatedCurves.parse_configuration(configuration_fn, function_defs)
 
     # HACK
     options_dict = Dict(options)
 
-    if haskey(options_dict, :do_load)
+    if get(options_dict, :do_load, false)
         h5 = HDF5.h5open(options_dict[:load_snapshot_fn], "r")
-        idx = options_dict[:load_snapshot_n]
+        idx = get(options_dict, :load_snapshot_n, -1)
         if idx > 0
-            Xinit .= read(h5["s$(options_dict[:load_snapshot_n])X"])
+            Xinit = read(h5["s$(options_dict[:load_snapshot_n])X"])
         else
             last_idx = read(h5["s_last_idx"])
-            Xinit .= read(h5["s$(s_last_idx)X"])
+            Xinit = read(h5["s$(last_idx)X"])
         end
         close(h5)
+        if size(Xinit, 1) != P.N
+            @info "Resampling"
+            Xinit = ModulatedCurves.resample(Xinit, P.N)
+        end
     end
 
     if haskey(options_dict, :output_dir)
@@ -42,7 +46,7 @@ function main(configuration_fn::String=config_fn)
         rm(joinpath(output_dir, "snapshots"); force=true, recursive=true)
         mkpath(joinpath(output_dir, "snapshots"))
         cp(configuration_fn, joinpath(output_dir, "config.toml"), force=true)
-        cp(func_defs_fn, joinpath(output_dir, "functions_defs.toml"), force=true)
+        cp(func_defs_fn, joinpath(output_dir, "function_definitions.jl"), force=true)
     end
 
     # check differentials
