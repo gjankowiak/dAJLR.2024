@@ -1042,7 +1042,7 @@ uuid = "66fc600b-dfda-50eb-8b99-91cfa97b1301"
 version = "1.1.6"
 
 [[deps.ModulatedCurves]]
-deps = ["CairoMakie", "Elliptic", "EvenParam", "GLMakie", "HDF5", "Interpolations", "JankoUtils", "LinearAlgebra", "Printf", "Serialization", "SparseArrays", "Symbolics", "TOML"]
+deps = ["CairoMakie", "Elliptic", "EvenParam", "GLMakie", "HDF5", "Interpolations", "JankoUtils", "LinearAlgebra", "Printf", "Serialization", "SparseArrays", "Symbolics", "TOML", "UnicodePlots"]
 path = "ModulatedCurves.jl"
 uuid = "fe8c8720-b329-4da7-9136-aa4067905fef"
 version = "0.1.0"
