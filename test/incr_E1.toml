@@ -1,0 +1,104 @@
+[options]
+record_movie = false
+do_plot = true
+pause_after_init = false
+plot_each_iter = 1
+pause_after_plot = false
+# snapshots_iters = [671, 1265, 3941]
+snapshots_times = [0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 20.0, 30.0, 40.0, 50.0, 100.0, 200.0, 300.0, 500.0, 1000.0, 1500.0, 2000.0, 5000.0, 10000.0]
+output_dir = "test/incr_E1.toml"
+
+[model]
+N = 720 # 2*2*2*3*3*5
+L = "2π"
+M = 0.0
+#c0 = 0
+c0 = 3e0
+mu = 1e-1
+
+[model.stiffness]
+key = "exponential"
+
+[model.stiffness.parameters.constant]
+c = 1.0
+
+[model.stiffness.parameters.double_well]
+c = 1.2
+offset = 0.1
+linear_slope = 0.0
+
+[model.stiffness.parameters.quadratic]
+offset = 1.0
+factor = -1e-1
+c = 0.0
+
+[model.stiffness.parameters.exponential]
+offset = 0.0
+exponent = 1
+c = 0.0
+
+[model.stiffness.parameters.anna]
+offset = -1.0
+exponent = 1.0
+factor = 6.0
+c = 1.0
+
+[model.stiffness.parameters.gaussian]
+offset = 0.25
+exponent = -1
+c = 0.0
+
+[model.stiffness.parameters.hyperbolic_tangent]
+offset = 0.0
+exponent = 3.0
+c = 1.0
+
+[solver]
+atol                = 5e-9
+rtol                = 1e-13
+max_iter            = 40_500
+step_size           = 1e-2    # <- STEP SIZE
+adapt               = true
+min_step_size       = 1e-5
+max_step_size       = 5e1
+step_down_threshold = 1e0
+step_up_threshold   = 2e-2
+step_factor         = 1.4
+
+newton_step_size = 5e-1
+newton_max_iter = 1000
+
+max_time = 15001.0
+
+[initial_data]
+type = "polygon"
+# type = "polygon"
+r_key = "triloop_bumped"
+p_key = "lemniscate"
+
+[initial_data.parameters.polygon]
+sides = 30
+smoothing = 0.1 # between 0 and 1
+reverse_phase = false
+only_rho = false
+rho_phase = 0.0
+rho_wave_number = 2
+rho_amplitude = 1.0
+
+[initial_data.parameters.parametric]
+t_min = -3.14159
+t_max = 3.141592653589
+rho_phase = 0.0
+rho_amplitude = 0.2
+radius = 1.0
+
+[initial_data.parameters.polar]
+s_min = 0
+s_max = 12.5664
+# s_max = 6.283185307179586
+# s_min = -0.7853981633974483
+# s_max = 0.7853981633974483
+rho_phase = 0.0
+rho_amplitude = 0.0
+radius_amplitude = 0.1
+radius_wave_number = 5

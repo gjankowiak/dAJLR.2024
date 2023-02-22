@@ -1,0 +1,109 @@
+
+[options]
+record_movie = false
+do_plot = true
+pause_after_init = false
+plot_each_iter = 1
+pause_after_plot = false
+# snapshots_iters = [1, 2, 5, 10, 20, 30, 40, 50, 100]
+snapshots_times = [1000.0, 2000.0, 5000.0, 10000.0, 20000.0, 50000.0]
+output_dir = "test/10-5/mu=1e-2_rhoA=0.01_rA=0.01.omega=2.λ=0.1.extended"
+do_load = true
+load_snapshot_fn = "test/10-5/mu=1e-2_rhoA=0.01_rA=0.01.omega=2.λ=0.1/data.hdf5"
+
+[model]
+N = 720 # 2*2*2*3*3*5
+L = "2π"
+M = 0.0
+#c0 = 0
+c0 = 0.0
+mu = 1e-2
+
+[model.stiffness]
+key = "exponential"
+
+[model.stiffness.parameters.constant]
+c = 1.0
+
+[model.stiffness.parameters.double_well]
+c = 1.2
+offset = 0.0
+linear_slope = 0.0
+
+[model.stiffness.parameters.quadratic]
+offset = 0.0
+factor = 1.0
+c = 1.0
+
+[model.stiffness.parameters.exponential]
+offset = 0.0
+exponent = 0.1
+c = 0.0
+
+[model.stiffness.parameters.anna]
+offset = -1.0
+exponent = 1.0
+factor = 6.0
+c = 1.0
+
+[model.stiffness.parameters.gaussian]
+offset = 0.25
+exponent = -1
+c = 0.0
+
+[model.stiffness.parameters.hyperbolic_tangent]
+offset = 0.0
+exponent = 3.0
+c = 1.0
+
+[solver]
+atol                = 1e-7
+rtol                = 1e-13
+max_iter            = 40_500
+step_size           = 1e-3    # <- STEP SIZE
+adapt               = true
+min_step_size       = 1e-5
+max_step_size       = 1e0
+step_down_threshold = 1e0
+step_up_threshold   = 1e-3
+step_factor         = 1.4
+
+newton_step_size = 5e-1
+newton_max_iter = 1000
+
+max_time = 30001.0
+
+[initial_data]
+type = "polar"
+# type = "polygon"
+r_key = "triloop"
+p_key = "lemniscate"
+
+[initial_data.parameters.polygon]
+sides = 3
+smoothing = 0.1 # between 0 and 1
+reverse_phase = false
+only_rho = false
+rho_phase = 0.0
+rho_wave_number = 2
+rho_amplitude = 5.0
+
+[initial_data.parameters.parametric]
+t_min = -3.14159
+t_max = 3.141592653589
+rho_phase = 0.0
+rho_amplitude = 0.5
+radius = 1.0
+
+[initial_data.parameters.polar]
+s_min = 0
+s_max = 3.141592653589
+# s_max = 6.283185307179586
+# s_min = -0.7853981633974483
+# s_max = 0.7853981633974483
+rho_phase = 0.0
+rho_amplitude = 0.01
+rho_wave_number = 5
+radius_amplitude = 0.01
+radius_wave_number = 10
+
