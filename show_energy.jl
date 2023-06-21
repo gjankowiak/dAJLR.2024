@@ -48,7 +48,12 @@ end
 
 function show_energy(dir::String)
     h5_fn = joinpath(dir, "data.hdf5")
-    energy_plot_fn = joinpath(dir, "energy.pdf")
+    bn = basename(dir)
+    if bn == ""
+        bn = basename(dirname(dir))
+    end
+    @info dir, bn
+    energy_plot_fn = joinpath(dir, "energy_$(basename(dir)).pdf")
     toml_fn = joinpath(dir, "config.toml")
 
     config = TOML.parsefile(toml_fn)
@@ -88,7 +93,8 @@ function show_energy(dir::String)
     last_idx = length(t_i)
 
     configs = Dict(
-                   ["mu=3e-3_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 6, 14, 22, 36, 44, 53], # 11, 40
+                   # ["mu=3e-3_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 6, 14, 22, 36, 44, 53], # 11, 40
+                   ["mu=3e-3_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 6, 14, 31, 44],
                                  legend_position = :rt,
                                  last_idx = length(t_i),
 
@@ -97,14 +103,14 @@ function show_energy(dir::String)
                                  e_min = 1e-1,
 
                                  plot_offset_x = 90,
-                                 plot_scale_x = 790,
+                                 plot_scale_x = 690,
                                  plot_range = 1.5,
 
                                  iw = 75, #inset width
 
-                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"E_\mu(t=0)"])),
+                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
-                   "mu=1e-3_rhoA=2.0_rA=0.4" => (snapshots_idx = [22, 31, 36, 48, 54], # 40
+                    "mu=1e-3_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 6, 14, 31, 44],
                                  legend_position = :rt,
                                  last_idx = length(t_i),
 
@@ -113,13 +119,12 @@ function show_energy(dir::String)
                                  e_min = 1e-1,
 
                                  plot_offset_x = 90,
-                                 plot_scale_x = 790,
+                                 plot_scale_x = 690,
                                  plot_range = 1.5,
 
                                  iw = 75, #inset width
 
-                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"E_\mu(t=0)"])),
-
+                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
                     "mu=1e-1_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 7, 12, 15, 23, 32, 38, 54],
                                  legend_position = :rt,
@@ -135,7 +140,7 @@ function show_energy(dir::String)
 
                                  iw = 45, #inset width
 
-                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^2", M.L"E_\mu(t=0)"])),
+                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
                     "mu=1e1_rhoA=2.0_rA=0.4" => (snapshots_idx = [3, 7, 12, 15, 23],
                                  legend_position = :lb,
@@ -150,9 +155,10 @@ function show_energy(dir::String)
                                  plot_scale_x = 1125,
                                  plot_range = 1.2,
 
-                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^2", M.L"E_\mu(t=0)"])),
+                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
-                   "mu=1e-3_rhoA=0.01_rA=0.01" => (snapshots_idx = [22, 37, 48, 54], # 40
+                   # "mu=1e-3_rhoA=0.01_rA=0.01" => (snapshots_idx = [22, 37, 48, 54], # 40
+                   "mu=1e-3_rhoA=0.01_rA=0.01" => (snapshots_idx = [22, 48],
                                  legend_position = :lc,
                                  last_idx = length(t_i),
 
@@ -161,12 +167,12 @@ function show_energy(dir::String)
                                  e_min = 1e-6,
 
                                  plot_offset_x = 90,
-                                 plot_scale_x = 725,
+                                 plot_scale_x = 640,
                                  plot_range = 1.5,
 
                                  iw = 85, #inset width
 
-                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"E_\mu(t=0)"])),
+                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
                    "mu=1e-3_rhoA=0_rA=0.01" => (snapshots_idx = [22, 38, 56], # 40
                                  legend_position = :lc,
@@ -182,7 +188,7 @@ function show_energy(dir::String)
 
                                  iw = 125, #inset width
 
-                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"E_\mu(t=0)"])),
+                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
                    "mu=3e-3_rhoA=2.0_rA=0.4_c0=1" => (snapshots_idx = [4, 14, 21, 50], # 40
                                  legend_position = :rt,
@@ -203,7 +209,7 @@ function show_energy(dir::String)
                                  iw = 85, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
 
                                  title = M.L"c_0 = 1,\; \mu = 3 \times 10^{-3}"
                                 ),
@@ -229,7 +235,7 @@ function show_energy(dir::String)
                                  iw = 110, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"E_\mu(\theta_0, \rho_0)", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, energy_circle, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "mu=1e-2_rhoA=0.01_rA=0.01.omega=2" => (snapshots_idx = [4, 14, 20, 21, 43], # 40
                                  legend_position = :rt,
@@ -252,7 +258,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=0.1" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -275,7 +281,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=1.5" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -298,7 +304,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=high" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -321,7 +327,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=low" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -344,7 +350,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=low2" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -367,7 +373,7 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    "non_monotonicity_mu=med" => (snapshots_idx = [1, 2, 3], # 40
                                  legend_position = :rt,
@@ -390,7 +396,30 @@ function show_energy(dir::String)
                                  iw = 70, #inset width
 
                                  # yticks = M.WilkinsonTicks(5))
-                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"E_\mu(t=0)"]),
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
+                                ),
+                   "a=5e-1" => (snapshots_idx = [1, 2, 3], # 40
+                                 legend_position = :rt,
+                                 last_idx = length(t_i),
+
+                                 t_min = 1e-3,
+                                 t_max = 1e-4,
+                                 e_min = 1e-5,
+                                 e_max = 1e4,
+
+                                 rho_marker_factor = 0.5,
+
+                                 plot_offset_x = 90,
+                                 plot_scale_x = 700,
+                                 plot_range = 1.75,
+
+                                 xscale = log10,
+                                 yscale = log10,
+
+                                 iw = 70, #inset width
+
+                                 # yticks = M.WilkinsonTicks(5))
+                                 yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
                    ])
 
@@ -416,7 +445,7 @@ function show_energy(dir::String)
         try
             push!(s_t_i, log10(read(h5["s$(i)t"])))
         catch
-            backtrace()
+            println(backtrace())
             println("Error")
             close(h5)
             return
@@ -431,7 +460,6 @@ function show_energy(dir::String)
     log_t_max_rounded  = round(log10(t_i[end]), RoundUp)
     log_t_delta = log_t_max_rounded - log_t_min_rounded
 
-    left = i::Int -> 50 + (i-1)*100
     left = log_t::Float64 -> (log_t-log_t_min_rounded)/log_t_delta*config.plot_scale_x + config.plot_offset_x
 
     bboxes = [M.BBox(left(log_t)-config.iw/2, left(log_t) + config.iw/2, 490, 490+1config.iw) for log_t in s_t_i]
@@ -445,10 +473,10 @@ function show_energy(dir::String)
     # snapshots_axes = [M.Axis(fig, bbox=bboxes[n],  aspect=M.AxisAspect(1), limits=limits[n], backgroundcolor=:blue) for (n,i) in enumerate(snapshots_idx)]
 
     # offset = 10t_i[2]
-    # M.scatterlines!(ax, offset .+ t_i, e, color="black", label=M.L"E_\mu")
-    # M.lines!(ax, offset .+ t_i, e, color="black", label=M.L"E_\mu")
-    # M.lines!(ax, offset .+ t_i, linestyle=:dash, color="black", energy_θ_i, label=M.L"E_1")
-    # M.lines!(ax, offset .+ t_i, linestyle=:dot, color="black", energy_ρ_i, label=M.L"E_2")
+    # M.scatterlines!(ax, offset .+ t_i, e, color="black", label=M.L"\hat{\mathcal{E}}_\mu")
+    # M.lines!(ax, offset .+ t_i, e, color="black", label=M.L"\hat{\mathcal{E}}_\mu")
+    # M.lines!(ax, offset .+ t_i, linestyle=:dash, color="black", energy_θ_i, label=M.L"\hat{\mathcal{E}}_1")
+    # M.lines!(ax, offset .+ t_i, linestyle=:dot, color="black", energy_ρ_i, label=M.L"\hat{\mathcal{E}}_2")
 
     if haskey(config, :annotations)
         M.annotations!(ax, config.annotations.text, config.annotations.points)
@@ -468,7 +496,7 @@ function show_energy(dir::String)
 
         xy, markersize, color = compute_xy(P, IP, s_X, matrices; color_factor=10.0, markersize_factor=markersize_factor)
 
-        M.scatterlines!(s_ax, xy[:,1], xy[:,2], markersize=markersize, markercolor=color, linewidth=0.01, color=:gray65)
+        M.scatterlines!(s_ax, xy[:,1], xy[:,2], markersize=markersize, markercolor=color, linewidth=0.5, color=:gray65)
 
         if i > 0
             M.vlines!(ax, s_t, linewidth=1, color=:gray50)
@@ -479,10 +507,10 @@ function show_energy(dir::String)
 
     M.hlines!(ax, e[1], linewidth=1, color=:gray20)
     if energy_circle > 1e-12
-        M.hlines!(ax, energy_circle, linewidth=1, color=:gray20, label=M.L"E_{\mu}(\theta_0, \rho_0)")
+        M.hlines!(ax, energy_circle, linewidth=1, color=:gray20, label=M.L"\hat{\mathcal{E}}_{\mu}(\hat{\theta}_0, \hat{\rho}_0)")
     else
         # M.arrows!(ax, [config.t_max*0.7], [config.e_min*1.4e1], [0.0], [-1.3e-4]; linewidth=0.5)
-        M.text!(ax, M.L"E_{\mu}(\theta_0, \mu_0) = 0 \; \rightarrow"; position=(config.t_max*0.65, config.e_min*1.5e0), align=(:right, :center), rotation=-π/2)
+        M.text!(ax, M.L"\hat{\mathcal{E}}_{\mu}(\hat{\theta}_0, \mu_0) = 0 \; \rightarrow"; position=(config.t_max*0.65, config.e_min*1.5e0), align=(:right, :center), rotation=-π/2)
     end
 
     @show energy_ρ_i[1]
@@ -496,9 +524,9 @@ function show_energy(dir::String)
 
     println(UnicodePlots.lineplot(t_i, energy_θ_i + energy_ρ_i, title="E_ρ + E_θ"))
 
-    M.lines!(ax, t_i[2:last_idx], e[2:last_idx],                           linewidth=2.0, color="black", label=M.L"E_\mu")
-    M.lines!(ax, t_i[2:last_idx], energy_θ_i[2:last_idx], linestyle=:dash, linewidth=2.0, color="black", label=M.L"E_{1} = \frac{1}{2} \int \beta(\rho)(\partial_s{\theta} - c_0)^{2}")
-    M.lines!(ax, t_i[2:last_idx], energy_ρ_i[2:last_idx], linestyle=:dot,  linewidth=2.0, color="black", label=M.L"E_{2} = \frac{\mu}{2}\int (\partial_s{\rho})^{2}")
+    M.lines!(ax, t_i[2:last_idx], e[2:last_idx],                           linewidth=2.0, color="black", label=M.L"\hat{\mathcal{E}}_\mu")
+    M.lines!(ax, t_i[2:last_idx], energy_θ_i[2:last_idx], linestyle=:dash, linewidth=2.0, color="black", label=M.L"\hat{\mathcal{E}}^{{\theta}}")
+    M.lines!(ax, t_i[2:last_idx], energy_ρ_i[2:last_idx], linestyle=:dot,  linewidth=2.0, color="black", label=M.L"\hat{\mathcal{E}}_{\mu}^{{\rho}}")
 
     M.xlims!(ax, (config.t_min, config.t_max))
     M.ylims!(ax, (get(config, :e_min, nothing), get(config, :e_max, nothing)))

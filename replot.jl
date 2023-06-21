@@ -1,6 +1,12 @@
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+import Distributed
+if Distributed.nprocs() < 2
+    Distributed.addprocs(1)
+end
+
+
 import TOML
 import HDF5
 
@@ -83,14 +89,15 @@ function plot(dir_name::String, plot_options::Dict)
 
     generated_function_defs = load_functions_dict(function_defs_fn)
 
-    P, S, Xinit, solver_params, options = ModulatedCurves.parse_configuration(configuration_fn, generated_function_defs)
+    P, S, _, solver_params, options = ModulatedCurves.parse_configuration(configuration_fn, generated_function_defs; skip_init=true)
 
     h5 = HDF5.h5open(joinpath(dir_name, "data.hdf5"))
+    Xinit = read(h5["s0X"])
 
     snapshots_dir = joinpath(dir_name, "snapshots")
 
     IP = compute_intermediate(P, S)
-    fig, update_plot = init_plot(P, IP, S, Xinit; plain=true, rho_factor=plot_options["rho-factor"], plot_range=plot_options["range"], no_circle=plot_options["no-circle"], monochrome=plot_options["monochrome-density"], show_nodes=true)
+    fig, update_plot = init_plot(P, IP, S, Xinit; plain=true, rho_factor=plot_options["rho-factor"], plot_range=plot_options["range"], no_circle=plot_options["no-circle"], monochrome=plot_options["monochrome-density"], show_nodes=true, transparent_bg=true)
 
     n = read(h5["s_last_idx"])
     for i in 0:n
@@ -102,13 +109,14 @@ function plot(dir_name::String, plot_options::Dict)
         rounded_t = round(t; digits=5)
 
         if i == 0
-            save_path = joinpath(snapshots_dir, "n=0_t=0.pdf")
+            save_path = joinpath(snapshots_dir, "s=$(lpad(i, 3, "0"))_n=00000_t=0.pdf")
         elseif i == n
-            save_path = joinpath(snapshots_dir, "n=$(n)_t=$rounded_t.last.pdf")
+            save_path = joinpath(snapshots_dir, "s=$(lpad(i, 3, "0"))_n=$(lpad(n, 5, "0"))_t=$rounded_t.last.pdf")
         else
-            save_path = joinpath(snapshots_dir, "n=$(n)_t=$rounded_t.pdf")
+            save_path = joinpath(snapshots_dir, "s=$(lpad(i, 3, "0"))_n=$(lpad(n, 5, "0"))_t=$rounded_t.pdf")
         end
         M.save(save_path, fig)
+        Distributed.@spawn run(`pdfcrop $save_path`)
     end
     close(h5)
 end
