@@ -1,0 +1,109 @@
+[options]
+record_movie = false
+do_plot = true
+pause_after_init = false
+plot_each_iter = 1
+pause_after_plot = false
+snapshots_times = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,
+                   1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,
+                   2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0]
+output_dir = "final/results/omega0_handdraw_quadratic_beta"
+
+highpass = true
+rho_factor = 30.0
+plot_range = 1.3
+
+[model]
+N = 720 # 2*2*2*3*3*5
+L = "2π"
+M = 0.0
+#c0 = 0
+c0 = 0.0
+mu = 1e-1
+
+[model.stiffness]
+key = "quadratic"
+
+[model.stiffness.parameters.constant]
+c = 1.0
+
+[model.stiffness.parameters.double_well]
+c = 1.2
+offset = 0.1
+linear_slope = 0.0
+
+[model.stiffness.parameters.quadratic]
+offset = 0.0
+factor = 1.0
+c = 0.1
+
+[model.stiffness.parameters.exponential]
+offset = 0.0
+exponent = 0
+c = 0.0
+
+[model.stiffness.parameters.anna]
+offset = -1.0
+exponent = 1.0
+factor = 6.0
+c = 1.0
+
+[model.stiffness.parameters.gaussian]
+offset = 0.25
+exponent = -1
+c = 0.0
+
+[model.stiffness.parameters.hyperbolic_tangent]
+offset = 0.0
+exponent = 3.0
+c = 1.0
+
+[solver]
+atol                = 1e-6
+rtol                = 1e-13
+max_iter            = 40_500
+step_size           = 1e-3    # <- STEP SIZE
+adapt               = true
+min_step_size       = 1e-5
+max_step_size       = 1e0
+step_down_threshold = 1e0
+step_up_threshold   = 1e-3
+step_factor         = 1.4
+
+newton_step_size = 5e-1
+newton_max_iter = 1000
+
+max_time = 3000.0
+
+[initial_data]
+type = "file"
+filename = "omega0_handdraw_quadratic_beta.csv"
+
+[initial_data.parameters.polygon]
+sides = 3
+smoothing = 0.1 # between 0 and 1
+reverse_phase = false
+only_rho = false
+rho_phase = 0.0
+rho_wave_number = 2
+rho_amplitude = 1.0
+
+[initial_data.parameters.parametric]
+t_min = -3.14159
+t_max = 3.141592653589
+rho_phase = 0.0
+rho_amplitude = 0.0
+radius = 1.0
+asym_factor = 8
+
+[initial_data.parameters.polar]
+s_min = 0
+s_max = 3.141592653589
+# s_max = 6.283185307179586
+# s_min = -0.7853981633974483
+# s_max = 0.7853981633974483
+rho_phase = 0.0
+rho_amplitude = 0.0
+rho_wave_number = 5
+radius_amplitude = 0.1
+radius_wave_number = 5
