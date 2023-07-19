@@ -18,7 +18,7 @@ if !isfile(config_fn)
     cp(default_config_fn, config_fn)
 end
 
-function flow(configuration_fn::String=config_fn)
+function flow(configuration_fn::String=config_fn, check_only::Bool=false)
     P, S, Xinit, solver_params, options = ModulatedCurves.parse_configuration(configuration_fn, function_defs)
 
     # HACK
@@ -40,6 +40,13 @@ function flow(configuration_fn::String=config_fn)
         end
     end
 
+    if check_only
+        println("Checking differentials")
+        ModulatedCurves.check_energy_gradient(P, S, Xinit)
+        # check_differential(P, S, Xinit)
+        return
+    end
+
     if haskey(options_dict, :output_dir)
         output_dir = options_dict[:output_dir]
         mkpath(output_dir)
@@ -49,9 +56,6 @@ function flow(configuration_fn::String=config_fn)
         cp(func_defs_fn, joinpath(output_dir, "function_definitions.jl"), force=true)
     end
 
-    # check differentials
-    # check_differential(P, S, Xinit)
-    # return
 
     do_flow(P, S, Xinit, solver_params; options...)
 end

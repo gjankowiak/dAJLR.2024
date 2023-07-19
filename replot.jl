@@ -1,11 +1,10 @@
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-import Distributed
-if Distributed.nprocs() < 2
-    Distributed.addprocs(1)
-end
-
+#import Distributed
+#if Distributed.nprocs() < 2
+#    Distributed.addprocs(1)
+#end
 
 import TOML
 import HDF5
@@ -116,7 +115,7 @@ function plot(dir_name::String, plot_options::Dict)
             save_path = joinpath(snapshots_dir, "s=$(lpad(i, 3, "0"))_n=$(lpad(n, 5, "0"))_t=$rounded_t.pdf")
         end
         M.save(save_path, fig)
-        Distributed.@spawn run(`pdfcrop $save_path`)
+        #Distributed.@spawn run(`pdfcrop $save_path`)
     end
     close(h5)
 end
@@ -130,4 +129,6 @@ function main()
     end
 end
 
-main()
+if length(ARGS) > 0
+    main()
+end

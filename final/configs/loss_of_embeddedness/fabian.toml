@@ -1,0 +1,133 @@
+# smaller padding
+# mu = 1.0
+
+[options]
+record_movie = false
+do_plot = true
+pause_after_init = false
+plot_each_iter = 1
+pause_after_plot = false
+# snapshots_iters = [1, 2, 5, 10, 20, 30, 40, 50, 100]
+snapshots_times = [0.00001, 0.00002, 0.00003, 0.00004, 0.00005, 0.00006, 0.00007, 0.00008, 0.00009,
+                   0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007, 0.0008, 0.0009,
+                   0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+                   0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 50.0, 100.0, 500.0, 1000.0]
+
+output_dir = "final/results/loss_of_embeddedness/fabian"
+
+rho_factor=300.0
+# plot_range=0.5
+plot_range=0.04
+
+[model]
+N = 1440 # 2*2*2*3*3*5
+L = "2π"
+# M = 0.0
+M = 0.0
+#c0 = 0
+c0 = 0.0
+# mu thresholds: 0.5 and 1.0
+mu = 1.0
+
+[model.stiffness]
+key = "exponential"
+
+[model.stiffness.parameters.constant]
+c = 1.0
+
+[model.stiffness.parameters.double_well]
+c = 1.2
+offset = 0.0
+linear_slope = 0.0
+
+[model.stiffness.parameters.dwp_non_monotonicity]
+c = 0.5
+
+[model.stiffness.parameters.quadratic]
+offset = 0.0
+factor = 20.0
+c = 0.03
+
+[model.stiffness.parameters.exponential]
+offset = 0.0
+exponent = 0
+c = 0.0
+
+[model.stiffness.parameters.anna]
+offset = -1.0
+exponent = 1.0
+factor = 6.0
+c = 1.0
+
+[model.stiffness.parameters.gaussian]
+offset = 0.25
+exponent = -1
+c = 0.0
+
+[model.stiffness.parameters.hyperbolic_tangent]
+offset = 0.0
+exponent = 3.0
+c = 1.0
+
+[solver]
+atol                = 1e-5
+rtol                = 1e-13
+max_iter            = 4_000
+step_size           = 1e-5    # <- STEP SIZE
+adapt               = true
+min_step_size       = 1e-6
+max_step_size       = 1e0
+step_down_threshold = 1e0
+step_up_threshold   = 1e-5
+step_factor         = 1.4
+
+newton_step_size = 2e-1
+newton_max_iter = 1000
+
+max_time = 1e-1
+
+[initial_data]
+type = "parametric"
+# type = "polygon"
+r_key = "default"
+p_key = "double_tear_drop"
+rho_key = "constant"
+
+[initial_data.parameters.polygon]
+sides = 3
+smoothing = 0.1 # between 0 and 1
+reverse_phase = false
+only_rho = false
+rho_phase = 0.0
+rho_wave_number = 2
+rho_amplitude = 5.0
+
+[initial_data.parameters.parametric]
+rho_phase = 0.0
+# rho_amplitude = 0.0
+rho_amplitude = 0.0
+radius = 1.0
+padding = 0.000005
+# t_min=1.09974
+# t_max = 7.39
+# t_max=13.6935
+t_min = 0.00
+t_max = 6.29688
+#6.29688
+delta = 0.3
+mid = 0.15
+scale = 20
+factor = 1
+
+patch_x4_origin = true
+
+[initial_data.parameters.polar]
+s_min = 1.09974
+s_max = 7.39662
+rho_phase = 0.0
+rho_amplitude = 0.1
+rho_wave_number = 1
+radius_amplitude = 0.0
+radius_wave_number = 1
+turn_number = 4
+

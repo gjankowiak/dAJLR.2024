@@ -1,6 +1,7 @@
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ConfParser = "88353bc9-fd38-507d-a820-d3b43837d6b9"
 Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
 EvenParam = "bcb3e14e-248c-11e9-14d9-6db38a995404"

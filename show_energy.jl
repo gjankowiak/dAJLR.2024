@@ -421,6 +421,23 @@ function show_energy(dir::String)
                                  # yticks = M.WilkinsonTicks(5))
                                  yticks = ([1e-2, 1, 100, e[1]], [M.L"10^{-2}", M.L"10^0", M.L"10^2", M.L"\hat{\mathcal{E}}_\mu(t=0)"]),
                                 ),
+                   "mu=1e-3_rhoA=0.01_rA=0.01_wave_rho_20" => (snapshots_idx = [22, 48],
+                                 legend_position = :lc,
+                                 last_idx = length(t_i),
+
+                                 t_min = 1e-4,
+                                 t_max = 4e3,
+                                 e_min = 1e-6,
+
+                                 plot_offset_x = 90,
+                                 plot_scale_x = 640,
+                                 plot_range = 1.5,
+
+                                 iw = 85, #inset width
+
+                                 yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_0, \hat{\rho}_0)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
+
+
                    ])
 
     try
