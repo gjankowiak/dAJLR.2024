@@ -1,12 +1,26 @@
 function_defs = Dict(
-:beta => Dict("constant" => (x,p) -> p.c,
-              "double_well" => (x,p) -> p.c + (x - p.offset - 1)^2 * (x - p.offset + 1)^2 + p.linear_slope*x,
-              "quadratic" => (x,p) -> p.c + (x - p.offset)^2,
-              "exponential" => (x,p) -> p.c + exp(p.exponent*(x - p.offset)),
-              "gaussian" => (x,p) -> p.c + exp(p.exponent*(x - p.offset)^2),
-              "hyperbolic_tangent" => (x,p) -> 1 + p.c + tanh(p.exponent*(x - p.offset))
-              # add your definitions here
-              # "your_key" => (x,p) -> p.c + sin(x*p.omega)
-             ),
-    :r => Dict("default" => (φ,p) -> 1 + p.radius_amplitude*cos(p.radius_wave_number*φ) )
+    :beta => Dict(
+        "constant" => (x, p) -> p.c,
+        "double_well" => (x, p) -> p.c + (x - p.offset - 1)^2 * (x - p.offset + 1)^2 + p.linear_slope * x,
+        "quadratic" => (x, p) -> p.c + (x - p.offset)^2,
+        "exponential" => (x, p) -> p.c + exp(p.exponent * (x - p.offset)),
+        "gaussian" => (x, p) -> p.c + exp(p.exponent * (x - p.offset)^2),
+        "hyperbolic_tangent" => (x, p) -> 1 + p.c + tanh(p.exponent * (x - p.offset))
+        # add your definitions here
+        # "your_key" => (x,p) -> p.c + sin(x*p.omega)
+    ),
+    :r => Dict(
+        "default" => (φ, p) -> 1 + p.radius_amplitude * cos(p.radius_wave_number * φ),
+        "exp" => (φ, p) -> 1 + p.radius_amplitude * exp(cos(p.radius_wave_number * φ))
+    ),
+    :p => Dict(
+        "default" => (t, p) -> [cos(t); sin(t)],
+        "lemniscate" => (t, p) -> [cos(t) / (1 + sin(t)^2); sin(t) * cos(t) / (1 + sin(t)^2)]
+    ),
+    :theta => Dict(
+        "default" => (t, p) -> 1
+    ),
+    :rho => Dict(
+        "default" => (t, p) -> 1
+    )
 )
