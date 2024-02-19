@@ -1,4 +1,10 @@
-# Numerical gradient flow described in [dAJLR][preprint]
+# Numerical gradient flow evolving heterogeneous elastic wires
+
+As described in:
+
+[dAJLR] Dall'Acqua, Jankowiak, Langer, Rupp, *Conservation, convergence, and computation for evolving heterogeneous elastic wires*.
+
+See the [preprint][preprint] on the arXiv.
 
 ## Installation
 
@@ -34,10 +40,12 @@ The energy plots (Figures 8 and 9) can be generated with
 The resulting `.pdf` file will be located in the corresponding result directory.
 
 
-## Drawing the initial curve
+## Capture of an hand-drawn initial curve
 
 The `capture` directory contains two scripts that can be used to capture mouse/pen table input to use as initial data for the curve. They require `opencv`, `numpy` and `matplotlib`. 
 First run `python capture.py`, draw a curve with the mouse and hit `ESC` when done. Then run `python postproc.py`, which will output a `.csv` file usable as initial data
 (see the `filename` key in the configuration files, i.e. `figures/fig12.toml`).
+
+Note that in this case, the initial density $\rho$ will be constant along the curve.
 
 [preprint]: https://arxiv.org/abs/2308.01151
