@@ -3,7 +3,7 @@
 ## Installation
 
 - Install [Julia](https://julialang.org/)
-- Clone this repository: `git clone https://github.com/gjankowiak/dAJLR && cd dAJLR`
+- Clone this repository: `git clone https://github.com/gjankowiak/dAJLR.2024 && cd dAJLR.2024`
 - Start a new project: `julia --project=.`
 - Get the packages, the will also pull all dependencies:
 ```
