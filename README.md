@@ -10,6 +10,8 @@
     ] add https://git.oknaj.eu/gjankowiak/EvenParam.jl add https://git.oknaj.eu/gjankowiak/JankoUtils.jl add https://git.oknaj.eu/gjankowiak/ModulatedCurves.jl
 ```
 
+## Usage
+
 - Try with the default set of parameters:
 ```
     include("flow.jl")
@@ -22,5 +24,11 @@
 The results will be output to the `figures/results` directory.
 
 - You can edit the newly created `config.params.toml` and `function_definitions.jl` run it again!
+
+## Drawing the initial curve
+
+The `capture` directory contains two scripts that can be used to capture mouse/pen table input to use as initial data for the curve. They require `opencv`, `numpy` and `matplotlib`. 
+First run `python capture.py`, draw a curve with the mouse and hit `ESC` when done. Then run `python postproc.py`, which will output a `.csv` file usable as initial data
+(see the `filename` key in the configuration files, i.e. `figures/fig12.toml`).
 
 [preprint]: https://arxiv.org/abs/2308.01151
