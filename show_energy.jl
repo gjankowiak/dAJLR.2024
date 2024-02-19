@@ -91,8 +91,8 @@ function show_energy(dir::String)
                                  t_max = 5e2,
                                  e_min = 1e-6,
 
-                                 plot_offset_x = -3,
-                                 plot_scale_x = 795,
+                                 plot_offset_x = -5,
+                                 plot_scale_x = 835,
                                  plot_range = 1.75,
 
                                  iw = 125, #inset width
