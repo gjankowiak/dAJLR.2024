@@ -25,6 +25,15 @@ The results will be output to the `figures/results` directory.
 
 - You can edit the newly created `config.params.toml` and `function_definitions.jl` run it again!
 
+The energy plots (Figures 8 and 9) can be generated with
+```
+    include("show_energy")
+    show_energy("figures/results/fig8")
+    show_energy("figures/results/fig9")
+```
+The resulting `.pdf` file will be located in the corresponding result directory.
+
+
 ## Drawing the initial curve
 
 The `capture` directory contains two scripts that can be used to capture mouse/pen table input to use as initial data for the curve. They require `opencv`, `numpy` and `matplotlib`. 
