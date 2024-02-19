@@ -7,7 +7,7 @@
 - Start a new project: `julia --project=.`
 - Get the packages, the will also pull all dependencies:
 ```
-    ] add https://git.oknaj.eu/gjankowiak/EvenParam.jl add https://git.oknaj.eu/gjankowiak/JankoUtils.jl add https://git.oknaj.eu/gjankowiak/ModulatedCurves.jl
+    ] add https://git.oknaj.eu/gjankowiak/ModulatedCurves.jl
 ```
 
 ## Usage
