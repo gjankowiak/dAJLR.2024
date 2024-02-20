@@ -99,7 +99,6 @@ function show_energy(dir::String)
 
                                  yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_c, \hat{\rho}_c)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
 
-                   ])
                     "fig9" => (snapshots_idx = [3, 6, 14, 31, 44],
                                  legend_position = :rt,
                                  last_idx = length(t_i),
@@ -118,6 +117,7 @@ function show_energy(dir::String)
                                  iw = 105, #inset width
 
                                  yticks = ([1e-1, 1, energy_circle, 10, 100, 1000, e[1]], [M.L"10^{-1}", M.L"10^0", M.L"\hat{\mathcal{E}}_\mu(\hat{\theta}_c, \hat{\rho}_c)", M.L"10^1", M.L"10^2", M.L"10^3", M.L"\hat{\mathcal{E}}_\mu(t=0)"])),
+                   ])
 
     try
         config = configs[basename(dirname(dir * "/"))]

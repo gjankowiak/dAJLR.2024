@@ -57,8 +57,6 @@ function parse_commandline()
 
     s = ArgParseSettings()
     @add_arg_table! s begin
-        # "--opt1"
-        #     help = "an option with an argument"
         "--no-circle"
             help = "No do draw the unit circle"
             action = :store_true
