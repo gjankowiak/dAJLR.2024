@@ -4,7 +4,7 @@ As described in:
 
 [dAJLR] Dall'Acqua, Jankowiak, Langer, Rupp, *Conservation, convergence, and computation for evolving heterogeneous elastic wires*.
 
-See the [preprint][preprint] on the arXiv.
+See the [preprint][preprint] on the arXiv or the [published version][published].
 
 ## Installation
 
@@ -49,3 +49,5 @@ First run `python capture.py`, draw a curve with the mouse and hit `ESC` when do
 Note that in this case, the initial density $\rho$ will be constant along the curve.
 
 [preprint]: https://arxiv.org/abs/2308.01151
+[published]: https://doi.org/10.1137/23M159086X
+
