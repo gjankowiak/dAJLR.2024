@@ -6,6 +6,8 @@ As described in:
 
 See the [preprint][preprint] on the arXiv or the [published version][published].
 
+The core code is implemented in a separate package: [ModulatedCurves.jl][mc].
+
 ## Installation
 
 - Install [Julia](https://julialang.org/)
@@ -50,4 +52,4 @@ Note that in this case, the initial density $\rho$ will be constant along the cu
 
 [preprint]: https://arxiv.org/abs/2308.01151
 [published]: https://doi.org/10.1137/23M159086X
-
+[mc]: https://github.com/gjankowiak/ModulatedCurves.jl
